@@ -1,11 +1,14 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
-import type { Platform, RepoConfig } from "../entities/index.js";
+import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
+import type { Platform, RepoConfig, ConnectedRepo } from "../entities/index.js";
+import type { SourceProvider } from "../webhook/webhook-provider.js";
 
 export class AdminModule {
   constructor(
     private readonly config: Config,
     private readonly repoConfigRepo: RepoConfigRepository,
+    private readonly connectedRepoRepo: ConnectedRepoRepository,
   ) {}
 
   async getRepoConfigById(id: number): Promise<RepoConfig | null> {
@@ -34,5 +37,18 @@ export class AdminModule {
 
   async deleteRepoConfig(id: number): Promise<void> {
     return this.repoConfigRepo.delete(id);
+  }
+
+  async getConnectedRepos(userId: string): Promise<ConnectedRepo[]> {
+    return this.connectedRepoRepo.findByUser(userId);
+  }
+
+  getProviderInstallUrl(provider: SourceProvider): string | null {
+    if (provider === "github") {
+      const slug = this.config.githubAppSlug;
+      if (!slug) return null;
+      return `https://github.com/apps/${slug}/installations/new`;
+    }
+    return null;
   }
 }

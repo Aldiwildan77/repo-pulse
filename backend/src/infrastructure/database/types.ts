@@ -5,6 +5,7 @@ export interface Database {
   user_bindings: UserBindingTable;
   repo_configs: RepoConfigTable;
   webhook_events: WebhookEventTable;
+  connected_repos: ConnectedRepoTable;
 }
 
 export interface PrMessageTable {
@@ -60,3 +61,15 @@ export interface WebhookEventTable {
 
 export type WebhookEventRow = Selectable<WebhookEventTable>;
 export type NewWebhookEventRow = Insertable<WebhookEventTable>;
+
+export interface ConnectedRepoTable {
+  id: Generated<number>;
+  provider: "github" | "gitlab" | "bitbucket";
+  provider_installation_id: string | null;
+  provider_repo: string;
+  connected_by: string;
+  created_at: Generated<Date>;
+}
+
+export type ConnectedRepoRow = Selectable<ConnectedRepoTable>;
+export type NewConnectedRepoRow = Insertable<ConnectedRepoTable>;

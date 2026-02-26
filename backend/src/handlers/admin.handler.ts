@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { AdminModule } from "../core/modules/admin.js";
 import type { Platform } from "../core/entities/index.js";
+import type { SourceProvider } from "../core/webhook/webhook-provider.js";
 import type { AuthMiddleware } from "./middleware/auth.middleware.js";
 
 export class AdminHandler {
@@ -38,6 +39,16 @@ export class AdminHandler {
     app.delete("/api/repos/config/:id", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.deleteConfig.bind(this),
+    });
+
+    app.get<{ Params: { provider: string } }>("/api/providers/:provider/install", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getProviderInstallUrl.bind(this),
+    });
+
+    app.get("/api/repos/connected", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getConnectedRepos.bind(this),
     });
   }
 
@@ -101,5 +112,29 @@ export class AdminHandler {
     const id = parseInt(request.params.id, 10);
     await this.admin.deleteRepoConfig(id);
     reply.code(204).send();
+  }
+
+  private async getProviderInstallUrl(
+    request: FastifyRequest<{ Params: { provider: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const provider = request.params.provider as SourceProvider;
+    const url = this.admin.getProviderInstallUrl(provider);
+
+    if (!url) {
+      reply.code(404).send({ error: "Install URL not available for this provider" });
+      return;
+    }
+
+    reply.redirect(url);
+  }
+
+  private async getConnectedRepos(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const userId = request.userId!;
+    const repos = await this.admin.getConnectedRepos(userId);
+    reply.send(repos);
   }
 }

@@ -26,6 +26,7 @@ export class ModuleFactory {
       repos.repoConfig,
       repos.userBinding,
       repos.webhookEvent,
+      repos.connectedRepo,
       pushers,
     );
 
@@ -38,6 +39,6 @@ export class ModuleFactory {
       infra.jwt,
     );
 
-    this.admin = new AdminModule(config, repos.repoConfig);
+    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo);
   }
 }

@@ -96,6 +96,15 @@ export class WebhookHandler {
       case "comment":
         await this.notifier.handleComment(event.data);
         break;
+      case "installation_created":
+        await this.notifier.handleInstallationCreated(event.data);
+        break;
+      case "installation_deleted":
+        await this.notifier.handleInstallationDeleted(event.data);
+        break;
+      case "installation_repos_changed":
+        await this.notifier.handleInstallationReposChanged(event.data);
+        break;
       case "ignored":
         break;
     }
