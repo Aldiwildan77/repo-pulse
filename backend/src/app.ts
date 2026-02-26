@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import rawBody from "fastify-raw-body";
 import type { Config } from "./infrastructure/config.js";
 import { InfrastructureFactory } from "./infrastructure/factory.js";
 import { RepositoryFactory } from "./repositories/factory.js";
@@ -19,6 +20,10 @@ export async function buildApp(config: Config) {
   });
 
   await app.register(cookie);
+
+  await app.register(rawBody, {
+    runFirst: true,
+  });
 
   // Wire dependencies
   const infra = new InfrastructureFactory(config);

@@ -19,6 +19,9 @@ const configSchema = z.object({
   slackClientSecret: z.string().min(1),
   slackCallbackUrl: z.string().url(),
 
+  gitlabWebhookSecret: z.string().min(1).optional(),
+  bitbucketWebhookSecret: z.string().min(1).optional(),
+
   jwtSecret: z.string().min(1),
   jwtAccessExpiry: z.string().default("15m"),
   jwtRefreshExpiry: z.string().default("7d"),
@@ -49,6 +52,9 @@ export function loadConfig(): Config {
     slackClientId: process.env.SLACK_CLIENT_ID,
     slackClientSecret: process.env.SLACK_CLIENT_SECRET,
     slackCallbackUrl: process.env.SLACK_CALLBACK_URL,
+
+    gitlabWebhookSecret: process.env.GITLAB_WEBHOOK_SECRET,
+    bitbucketWebhookSecret: process.env.BITBUCKET_WEBHOOK_SECRET,
 
     jwtSecret: process.env.JWT_SECRET,
     jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY,

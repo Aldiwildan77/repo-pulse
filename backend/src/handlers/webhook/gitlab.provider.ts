@@ -1,0 +1,124 @@
+import type { FastifyRequest } from "fastify";
+import type { WebhookProvider, WebhookEvent } from "../../core/webhook/webhook-provider.js";
+
+export class GitLabWebhookProvider implements WebhookProvider {
+  readonly name = "gitlab" as const;
+
+  constructor(private readonly secret: string) {}
+
+  verifySignature(request: FastifyRequest): boolean {
+    const token = request.headers["x-gitlab-token"] as string | undefined;
+    if (!token) return false;
+    return token === this.secret;
+  }
+
+  extractDeliveryId(request: FastifyRequest): string | null {
+    const payload = request.body as Record<string, unknown>;
+    const objectKind = payload.object_kind as string | undefined;
+    const attrs = payload.object_attributes as Record<string, unknown> | undefined;
+
+    if (!attrs?.id) return null;
+
+    // Build a synthetic delivery ID from the object kind + id + action
+    const action = (attrs.action as string) ?? objectKind ?? "unknown";
+    return `${objectKind}-${attrs.id}-${action}`;
+  }
+
+  parseEvent(request: FastifyRequest): WebhookEvent {
+    const payload = request.body as Record<string, unknown>;
+    const eventType = request.headers["x-gitlab-event"] as string;
+
+    if (eventType === "Merge Request Hook") {
+      return this.parseMergeRequest(payload);
+    }
+
+    if (eventType === "Note Hook") {
+      return this.parseNote(payload);
+    }
+
+    return { kind: "ignored" };
+  }
+
+  private parseMergeRequest(payload: Record<string, unknown>): WebhookEvent {
+    const attrs = payload.object_attributes as Record<string, unknown>;
+    const project = payload.project as Record<string, unknown>;
+    const user = payload.user as Record<string, unknown>;
+    const repo = project.path_with_namespace as string;
+    const action = attrs.action as string;
+
+    if (action === "open") {
+      return {
+        kind: "pr_opened",
+        data: {
+          prId: attrs.iid as number,
+          repo,
+          title: attrs.title as string,
+          author: user.username as string,
+          url: attrs.url as string,
+        },
+      };
+    }
+
+    if (action === "merge") {
+      return {
+        kind: "pr_closed",
+        data: {
+          prId: attrs.iid as number,
+          repo,
+          merged: true,
+        },
+      };
+    }
+
+    if (action === "close") {
+      return {
+        kind: "pr_closed",
+        data: {
+          prId: attrs.iid as number,
+          repo,
+          merged: false,
+        },
+      };
+    }
+
+    return { kind: "ignored" };
+  }
+
+  private parseNote(payload: Record<string, unknown>): WebhookEvent {
+    const attrs = payload.object_attributes as Record<string, unknown>;
+    const noteableType = attrs.noteable_type as string;
+
+    if (noteableType !== "MergeRequest") {
+      return { kind: "ignored" };
+    }
+
+    const mr = payload.merge_request as Record<string, unknown>;
+    const project = payload.project as Record<string, unknown>;
+    const user = payload.user as Record<string, unknown>;
+    const repo = project.path_with_namespace as string;
+    const body = attrs.note as string;
+
+    const mentionRegex = /@([a-zA-Z0-9_.-]+)/g;
+    const mentions: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = mentionRegex.exec(body)) !== null) {
+      mentions.push(match[1]);
+    }
+
+    if (mentions.length === 0) {
+      return { kind: "ignored" };
+    }
+
+    return {
+      kind: "comment",
+      data: {
+        repo,
+        prTitle: mr.title as string,
+        prUrl: (mr.url as string) ?? attrs.url as string,
+        commenter: user.username as string,
+        body,
+        mentionedUsernames: mentions,
+      },
+    };
+  }
+}

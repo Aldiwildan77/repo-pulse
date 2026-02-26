@@ -59,8 +59,12 @@ export class SlackPusher implements Pusher {
   }
 
   async addReaction(channelId: string, messageId: string, emoji: string): Promise<void> {
-    // Slack reactions use names without colons
-    const reactionName = emoji.replace(/:/g, "");
+    // Map Unicode emoji to Slack reaction names
+    const emojiMap: Record<string, string> = {
+      "\u2705": "white_check_mark",
+      "\u274C": "x",
+    };
+    const reactionName = emojiMap[emoji] ?? emoji.replace(/:/g, "");
     await this.client.reactions.add({
       channel: channelId,
       timestamp: messageId,

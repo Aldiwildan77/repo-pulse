@@ -1,51 +1,67 @@
-import crypto from "node:crypto";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { NotifierModule } from "../core/modules/notifier.js";
 import type { IdempotencyStore } from "../infrastructure/redis/idempotency.js";
+import type { RateLimiter } from "../infrastructure/rate-limiter/rate-limiter.js";
 import type { AppLogger } from "../infrastructure/logger/logger.js";
+import type { WebhookProvider, WebhookEvent } from "../core/webhook/webhook-provider.js";
 
 export class WebhookHandler {
+  private readonly providerMap: Map<string, WebhookProvider>;
+
   constructor(
     private readonly notifier: NotifierModule,
     private readonly idempotency: IdempotencyStore,
-    private readonly webhookSecret: string,
+    private readonly rateLimiter: RateLimiter,
     private readonly logger: AppLogger,
-  ) {}
-
-  register(app: FastifyInstance): void {
-    app.post("/api/webhook/github", {
-      config: { rawBody: true },
-      handler: this.handle.bind(this),
-    });
+    providers: WebhookProvider[],
+  ) {
+    this.providerMap = new Map(providers.map((p) => [p.name, p]));
   }
 
-  private async handle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    // Verify HMAC signature
-    const signature = request.headers["x-hub-signature-256"] as string | undefined;
-    if (!signature) {
-      reply.code(401).send({ error: "Missing signature" });
+  register(app: FastifyInstance): void {
+    app.post<{ Params: { providerName: string } }>(
+      "/api/webhook/:providerName",
+      {
+        config: { rawBody: true },
+        handler: this.handle.bind(this),
+      },
+    );
+  }
+
+  private async handle(
+    request: FastifyRequest<{ Params: { providerName: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const { providerName } = request.params;
+    const provider = this.providerMap.get(providerName);
+
+    if (!provider) {
+      reply.code(404).send({ error: "Unknown provider" });
       return;
     }
 
-    const body = JSON.stringify(request.body);
-    const expected = "sha256=" + crypto
-      .createHmac("sha256", this.webhookSecret)
-      .update(body)
-      .digest("hex");
-
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    // Verify signature
+    if (!provider.verifySignature(request)) {
       reply.code(401).send({ error: "Invalid signature" });
       return;
     }
 
+    // Rate limit check
+    const allowed = await this.rateLimiter.isAllowed(`webhook:${providerName}`);
+    if (!allowed) {
+      reply.code(429).send({ error: "Rate limit exceeded" });
+      return;
+    }
+
     // Idempotency check
-    const deliveryId = request.headers["x-github-delivery"] as string | undefined;
+    const deliveryId = provider.extractDeliveryId(request);
     if (!deliveryId) {
       reply.code(400).send({ error: "Missing delivery ID" });
       return;
     }
 
-    const isDuplicate = await this.idempotency.isDuplicate(deliveryId);
+    const idempotencyKey = `${providerName}:${deliveryId}`;
+    const isDuplicate = await this.idempotency.isDuplicate(idempotencyKey);
     if (isDuplicate) {
       reply.code(200).send({ status: "already processed" });
       return;
@@ -54,79 +70,34 @@ export class WebhookHandler {
     // Respond immediately, process async
     reply.code(202).send({ status: "accepted" });
 
-    const eventType = request.headers["x-github-event"] as string;
-    const payload = request.body as Record<string, unknown>;
+    const event = provider.parseEvent(request);
 
     setImmediate(() => {
-      this.processEvent(eventType, payload, deliveryId).catch((err) => {
+      this.processEvent(event, idempotencyKey).catch((err) => {
         this.logger.error("Failed to process webhook event", {
           error: String(err),
-          deliveryId,
-          eventType,
+          deliveryId: idempotencyKey,
+          provider: providerName,
         });
       });
     });
   }
 
-  private async processEvent(
-    eventType: string,
-    payload: Record<string, unknown>,
-    deliveryId: string,
-  ): Promise<void> {
-    await this.notifier.recordEvent(deliveryId, eventType);
+  private async processEvent(event: WebhookEvent, idempotencyKey: string): Promise<void> {
+    await this.notifier.recordEvent(idempotencyKey, event.kind);
 
-    if (eventType === "pull_request") {
-      await this.handlePullRequest(payload);
-    } else if (eventType === "issue_comment") {
-      await this.handleIssueComment(payload);
-    }
-  }
-
-  private async handlePullRequest(payload: Record<string, unknown>): Promise<void> {
-    const action = payload.action as string;
-    const pr = payload.pull_request as Record<string, unknown>;
-    const repo = (payload.repository as Record<string, unknown>).full_name as string;
-
-    if (action === "opened") {
-      await this.notifier.handlePrOpened({
-        prId: pr.number as number,
-        repo,
-        title: pr.title as string,
-        author: (pr.user as Record<string, unknown>).login as string,
-        url: pr.html_url as string,
-      });
-    } else if (action === "closed") {
-      await this.notifier.handlePrClosed({
-        prId: pr.number as number,
-        repo,
-        merged: pr.merged as boolean,
-      });
-    }
-  }
-
-  private async handleIssueComment(payload: Record<string, unknown>): Promise<void> {
-    const comment = payload.comment as Record<string, unknown>;
-    const issue = payload.issue as Record<string, unknown>;
-    const repo = (payload.repository as Record<string, unknown>).full_name as string;
-    const body = comment.body as string;
-
-    // Parse @mentions from comment body
-    const mentionRegex = /@([a-zA-Z0-9-]+)/g;
-    const mentions: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = mentionRegex.exec(body)) !== null) {
-      mentions.push(match[1]);
-    }
-
-    if (mentions.length > 0) {
-      await this.notifier.handleComment({
-        repo,
-        prTitle: issue.title as string,
-        prUrl: issue.html_url as string,
-        commenter: (comment.user as Record<string, unknown>).login as string,
-        body,
-        mentionedUsernames: mentions,
-      });
+    switch (event.kind) {
+      case "pr_opened":
+        await this.notifier.handlePrOpened(event.data);
+        break;
+      case "pr_closed":
+        await this.notifier.handlePrClosed(event.data);
+        break;
+      case "comment":
+        await this.notifier.handleComment(event.data);
+        break;
+      case "ignored":
+        break;
     }
   }
 }
