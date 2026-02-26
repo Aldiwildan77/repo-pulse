@@ -1,0 +1,119 @@
+import type { Config } from "../../infrastructure/config.js";
+import type { PrMessageRepository } from "../repositories/pr-message.repository.js";
+import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
+import type { UserBindingRepository } from "../repositories/user-binding.repository.js";
+import type { WebhookEventRepository } from "../repositories/webhook-event.repository.js";
+import type { Platform } from "../entities/index.js";
+import type { Pusher } from "./pusher/pusher.interface.js";
+
+export interface PrOpenedEvent {
+  prId: number;
+  repo: string;
+  title: string;
+  author: string;
+  url: string;
+}
+
+export interface PrClosedEvent {
+  prId: number;
+  repo: string;
+  merged: boolean;
+}
+
+export interface CommentEvent {
+  repo: string;
+  prTitle: string;
+  prUrl: string;
+  commenter: string;
+  body: string;
+  mentionedUsernames: string[];
+}
+
+export class NotifierModule {
+  constructor(
+    private readonly config: Config,
+    private readonly prMessageRepo: PrMessageRepository,
+    private readonly repoConfigRepo: RepoConfigRepository,
+    private readonly userBindingRepo: UserBindingRepository,
+    private readonly webhookEventRepo: WebhookEventRepository,
+    private readonly pushers: Map<Platform, Pusher>,
+  ) {}
+
+  async handlePrOpened(event: PrOpenedEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+
+    for (const cfg of configs) {
+      const pusher = this.pushers.get(cfg.platform);
+      if (!pusher) continue;
+
+      const messageId = await pusher.sendPrNotification(cfg.channelId, {
+        repo: event.repo,
+        title: event.title,
+        author: event.author,
+        url: event.url,
+      });
+
+      await this.prMessageRepo.create({
+        providerPrId: event.prId,
+        providerRepo: event.repo,
+        platform: cfg.platform,
+        platformMessageId: messageId,
+        platformChannelId: cfg.channelId,
+      });
+    }
+  }
+
+  async handlePrClosed(event: PrClosedEvent): Promise<void> {
+    const messages = await this.prMessageRepo.findByPrAndRepo(event.prId, event.repo);
+    const emoji = event.merged ? "\u2705" : "\u274C";
+    const status = event.merged ? "merged" : "closed";
+
+    for (const msg of messages) {
+      const pusher = this.pushers.get(msg.platform);
+      if (!pusher) continue;
+
+      await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
+      await this.prMessageRepo.updateStatus(msg.id, status);
+    }
+  }
+
+  async handleComment(event: CommentEvent): Promise<void> {
+    if (event.mentionedUsernames.length === 0) return;
+
+    const bindings = await this.userBindingRepo.findByProviderUsernames(event.mentionedUsernames);
+
+    for (const binding of bindings) {
+      // Send to Discord if bound
+      if (binding.discordUserId) {
+        const pusher = this.pushers.get("discord");
+        if (pusher) {
+          await pusher.sendMentionNotification(binding.discordUserId, {
+            repo: event.repo,
+            prTitle: event.prTitle,
+            prUrl: event.prUrl,
+            commenter: event.commenter,
+            commentBody: event.body,
+          });
+        }
+      }
+
+      // Send to Slack if bound
+      if (binding.slackUserId) {
+        const pusher = this.pushers.get("slack");
+        if (pusher) {
+          await pusher.sendMentionNotification(binding.slackUserId, {
+            repo: event.repo,
+            prTitle: event.prTitle,
+            prUrl: event.prUrl,
+            commenter: event.commenter,
+            commentBody: event.body,
+          });
+        }
+      }
+    }
+  }
+
+  async recordEvent(eventId: string, eventType: string): Promise<void> {
+    await this.webhookEventRepo.create({ eventId, eventType });
+  }
+}
