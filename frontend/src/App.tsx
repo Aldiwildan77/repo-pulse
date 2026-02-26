@@ -1,0 +1,32 @@
+import { Routes, Route } from "react-router";
+import { AuthLayout } from "@/components/layout/auth-layout";
+import { AppLayout } from "@/components/layout/app-layout";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { LoginPage } from "@/pages/login";
+import { DashboardPage } from "@/pages/dashboard";
+import { ProfilePage } from "@/pages/profile";
+import { RepositoriesPage } from "@/pages/repositories";
+import { RepositoryConfigPage } from "@/pages/repositories/config";
+import { NotFoundPage } from "@/pages/not-found";
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/repositories" element={<RepositoriesPage />} />
+          <Route path="/repositories/new" element={<RepositoryConfigPage />} />
+          <Route path="/repositories/:repoId/edit" element={<RepositoryConfigPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}

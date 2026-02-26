@@ -7,6 +7,8 @@ export interface RepoConfigRepository {
     channelId: string;
   }): Promise<RepoConfig>;
 
+  findById(id: number): Promise<RepoConfig | null>;
+
   findAll(): Promise<RepoConfig[]>;
 
   findByRepo(providerRepo: string): Promise<RepoConfig[]>;

@@ -25,6 +25,11 @@ export class AdminHandler {
       handler: this.getConfigs.bind(this),
     });
 
+    app.get<{ Params: { id: string } }>("/api/repos/config/:id", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getConfigById.bind(this),
+    });
+
     app.patch("/api/repos/config/:id", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.updateConfig.bind(this),
@@ -62,6 +67,19 @@ export class AdminHandler {
     const repo = decodeURIComponent(request.params.repo);
     const configs = await this.admin.getRepoConfigs(repo);
     reply.send(configs);
+  }
+
+  private async getConfigById(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const id = parseInt(request.params.id, 10);
+    const config = await this.admin.getRepoConfigById(id);
+    if (!config) {
+      reply.code(404).send({ error: "Config not found" });
+      return;
+    }
+    reply.send(config);
   }
 
   private async updateConfig(

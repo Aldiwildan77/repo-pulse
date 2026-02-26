@@ -8,6 +8,10 @@ export class AdminModule {
     private readonly repoConfigRepo: RepoConfigRepository,
   ) {}
 
+  async getRepoConfigById(id: number): Promise<RepoConfig | null> {
+    return this.repoConfigRepo.findById(id);
+  }
+
   async getAllRepoConfigs(): Promise<RepoConfig[]> {
     return this.repoConfigRepo.findAll();
   }

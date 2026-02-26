@@ -32,6 +32,16 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     return toRepoConfig(row);
   }
 
+  async findById(id: number): Promise<RepoConfig | null> {
+    const row = await this.db
+      .selectFrom("repo_configs")
+      .selectAll()
+      .where("id", "=", id)
+      .executeTakeFirst();
+
+    return row ? toRepoConfig(row) : null;
+  }
+
   async findAll(): Promise<RepoConfig[]> {
     const rows = await this.db
       .selectFrom("repo_configs")
