@@ -97,6 +97,7 @@ export function RepositoryConfigPage() {
             initialValues={
               repository
                 ? {
+                    provider: repository.provider,
                     providerRepo: repository.providerRepo,
                     platform: repository.platform,
                     channelId: repository.channelId,
