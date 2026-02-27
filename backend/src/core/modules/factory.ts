@@ -28,6 +28,7 @@ export class ModuleFactory {
       repos.webhookEvent,
       repos.connectedRepo,
       pushers,
+      infra.logger.child({ module: "notifier" }),
     );
 
     this.auth = new AuthModule(

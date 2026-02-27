@@ -6,6 +6,7 @@ import type { WebhookEventRepository } from "../repositories/webhook-event.repos
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
 import type { Platform } from "../entities/index.js";
 import type { Pusher } from "./pusher/pusher.interface.js";
+import type { AppLogger } from "../../infrastructure/logger/logger.js";
 import type {
   InstallationCreatedEvent,
   InstallationDeletedEvent,
@@ -44,29 +45,61 @@ export class NotifierModule {
     private readonly webhookEventRepo: WebhookEventRepository,
     private readonly connectedRepoRepo: ConnectedRepoRepository,
     private readonly pushers: Map<Platform, Pusher>,
+    private readonly logger: AppLogger,
   ) {}
 
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
 
-    for (const cfg of configs) {
-      const pusher = this.pushers.get(cfg.platform);
-      if (!pusher) continue;
-
-      const messageId = await pusher.sendPrNotification(cfg.channelId, {
+    if (configs.length === 0) {
+      this.logger.warn("No active repo configs found for PR notification", {
         repo: event.repo,
-        title: event.title,
-        author: event.author,
-        url: event.url,
+        prId: event.prId,
       });
+      return;
+    }
 
-      await this.prMessageRepo.create({
-        providerPrId: event.prId,
-        providerRepo: event.repo,
-        platform: cfg.platform,
-        platformMessageId: messageId,
-        platformChannelId: cfg.channelId,
-      });
+    for (const cfg of configs) {
+      try {
+        const pusher = this.pushers.get(cfg.platform);
+        if (!pusher) {
+          this.logger.warn("No pusher registered for platform", {
+            platform: cfg.platform,
+            repo: event.repo,
+          });
+          continue;
+        }
+
+        const messageId = await pusher.sendPrNotification(cfg.channelId, {
+          repo: event.repo,
+          title: event.title,
+          author: event.author,
+          url: event.url,
+        });
+
+        await this.prMessageRepo.create({
+          providerPrId: event.prId,
+          providerRepo: event.repo,
+          platform: cfg.platform,
+          platformMessageId: messageId,
+          platformChannelId: cfg.channelId,
+        });
+
+        this.logger.info("PR notification sent", {
+          repo: event.repo,
+          prId: event.prId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      } catch (err) {
+        this.logger.error("Failed to send PR notification", {
+          error: String(err),
+          repo: event.repo,
+          prId: event.prId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      }
     }
   }
 
@@ -75,12 +108,30 @@ export class NotifierModule {
     const emoji = event.merged ? "\u2705" : "\u274C";
     const status = event.merged ? "merged" : "closed";
 
-    for (const msg of messages) {
-      const pusher = this.pushers.get(msg.platform);
-      if (!pusher) continue;
+    if (messages.length === 0) {
+      this.logger.warn("No PR messages found for reaction", {
+        repo: event.repo,
+        prId: event.prId,
+        status,
+      });
+      return;
+    }
 
-      await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
-      await this.prMessageRepo.updateStatus(msg.id, status);
+    for (const msg of messages) {
+      try {
+        const pusher = this.pushers.get(msg.platform);
+        if (!pusher) continue;
+
+        await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
+        await this.prMessageRepo.updateStatus(msg.id, status);
+      } catch (err) {
+        this.logger.error("Failed to add PR reaction", {
+          error: String(err),
+          repo: event.repo,
+          prId: event.prId,
+          platform: msg.platform,
+        });
+      }
     }
   }
 
