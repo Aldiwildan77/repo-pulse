@@ -50,6 +50,26 @@ export class AdminHandler {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getConnectedRepos.bind(this),
     });
+
+    app.get("/api/platforms/discord/guilds", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getDiscordGuilds.bind(this),
+    });
+
+    app.get<{ Params: { guildId: string } }>("/api/platforms/discord/guilds/:guildId/channels", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getDiscordChannels.bind(this),
+    });
+
+    app.get("/api/platforms/slack/channels", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getSlackChannels.bind(this),
+    });
+
+    app.get("/api/platforms/discord/bot-invite", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getDiscordBotInvite.bind(this),
+    });
   }
 
   private async getAllConfigs(
@@ -136,5 +156,38 @@ export class AdminHandler {
     const userId = request.userId!;
     const repos = await this.admin.getConnectedRepos(userId);
     reply.send(repos);
+  }
+
+  private async getDiscordGuilds(
+    _request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const guilds = await this.admin.getDiscordGuilds();
+    reply.send(guilds);
+  }
+
+  private async getDiscordChannels(
+    request: FastifyRequest<{ Params: { guildId: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const { guildId } = request.params;
+    const channels = await this.admin.getDiscordChannels(guildId);
+    reply.send(channels);
+  }
+
+  private async getSlackChannels(
+    _request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const channels = await this.admin.getSlackChannels();
+    reply.send(channels);
+  }
+
+  private async getDiscordBotInvite(
+    _request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const url = this.admin.getDiscordBotInviteUrl();
+    reply.send({ url });
   }
 }

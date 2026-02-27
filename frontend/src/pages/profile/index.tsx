@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useUserBindings } from "@/hooks/use-user-bindings";
+import { useDiscordBotInvite } from "@/hooks/use-platforms";
 import { PlatformBindingCard } from "@/components/profile/platform-binding-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,6 +16,7 @@ export function ProfilePage() {
   const { user } = useAuth();
   const { discordBound, slackBound, discordConnectUrl, slackConnectUrl } =
     useUserBindings();
+  const { inviteUrl: discordBotInviteUrl } = useDiscordBotInvite();
 
   return (
     <div className="space-y-6">
@@ -54,6 +56,8 @@ export function ProfilePage() {
             label="Discord"
             isConnected={discordBound}
             connectUrl={discordConnectUrl}
+            actionUrl={discordBotInviteUrl}
+            actionLabel="Add Bot to Server"
           />
           <PlatformBindingCard
             label="Slack"

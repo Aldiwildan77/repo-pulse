@@ -1,5 +1,5 @@
 import { WebClient } from "@slack/web-api";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload } from "./pusher.interface.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, Channel } from "./pusher.interface.js";
 
 export class SlackPusher implements Pusher {
   private readonly client: WebClient;
@@ -70,5 +70,29 @@ export class SlackPusher implements Pusher {
       timestamp: messageId,
       name: reactionName,
     });
+  }
+
+  async listChannels(): Promise<Channel[]> {
+    const channels: Channel[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const result = await this.client.conversations.list({
+        types: "public_channel,private_channel",
+        exclude_archived: true,
+        limit: 200,
+        cursor,
+      });
+
+      for (const ch of result.channels ?? []) {
+        if (ch.id && ch.name) {
+          channels.push({ id: ch.id, name: ch.name });
+        }
+      }
+
+      cursor = result.response_metadata?.next_cursor || undefined;
+    } while (cursor);
+
+    return channels;
   }
 }

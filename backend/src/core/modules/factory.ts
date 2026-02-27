@@ -39,6 +39,6 @@ export class ModuleFactory {
       infra.jwt,
     );
 
-    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo);
+    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, pushers);
   }
 }

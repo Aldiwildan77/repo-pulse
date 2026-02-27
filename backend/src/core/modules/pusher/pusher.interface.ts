@@ -13,6 +13,17 @@ export interface MentionNotificationPayload {
   commentBody: string;
 }
 
+export interface Guild {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+}
+
 export interface Pusher {
   sendPrNotification(
     channelId: string,
@@ -29,4 +40,7 @@ export interface Pusher {
     messageId: string,
     emoji: string,
   ): Promise<void>;
+
+  listGuilds?(): Promise<Guild[]>;
+  listChannels(guildId?: string): Promise<Channel[]>;
 }

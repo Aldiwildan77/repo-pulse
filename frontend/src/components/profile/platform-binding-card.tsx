@@ -1,4 +1,4 @@
-import { LinkIcon } from "lucide-react";
+import { LinkIcon, ExternalLinkIcon } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -13,12 +13,16 @@ interface PlatformBindingCardProps {
   label: string;
   isConnected: boolean;
   connectUrl: string;
+  actionUrl?: string | null;
+  actionLabel?: string;
 }
 
 export function PlatformBindingCard({
   label,
   isConnected,
   connectUrl,
+  actionUrl,
+  actionLabel,
 }: PlatformBindingCardProps) {
   return (
     <Card>
@@ -37,9 +41,19 @@ export function PlatformBindingCard({
       </CardHeader>
       <CardContent>
         {isConnected ? (
-          <p className="text-sm text-muted-foreground">
-            Account connected successfully.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Account connected successfully.
+            </p>
+            {actionUrl && actionLabel && (
+              <Button variant="outline" asChild>
+                <a href={actionUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLinkIcon className="mr-2 h-4 w-4" />
+                  {actionLabel}
+                </a>
+              </Button>
+            )}
+          </div>
         ) : (
           <Button asChild>
             <a href={connectUrl}>

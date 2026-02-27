@@ -1,5 +1,5 @@
-import { Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload } from "./pusher.interface.js";
+import { ChannelType, Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, Guild, Channel } from "./pusher.interface.js";
 
 export class DiscordPusher implements Pusher {
   private readonly client: Client;
@@ -64,5 +64,23 @@ export class DiscordPusher implements Pusher {
 
     const message = await channel.messages.fetch(messageId);
     await message.react(emoji);
+  }
+
+  async listGuilds(): Promise<Guild[]> {
+    await this.ready;
+    return this.client.guilds.cache.map((g) => ({
+      id: g.id,
+      name: g.name,
+      icon: g.iconURL(),
+    }));
+  }
+
+  async listChannels(guildId: string): Promise<Channel[]> {
+    await this.ready;
+    const guild = await this.client.guilds.fetch(guildId);
+    const channels = await guild.channels.fetch();
+    return channels
+      .filter((ch) => ch !== null && ch.type === ChannelType.GuildText)
+      .map((ch) => ({ id: ch!.id, name: ch!.name }));
   }
 }

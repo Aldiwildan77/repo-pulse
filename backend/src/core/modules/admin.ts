@@ -3,12 +3,14 @@ import type { RepoConfigRepository } from "../repositories/repo-config.repositor
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
 import type { Platform, RepoConfig, ConnectedRepo } from "../entities/index.js";
 import type { SourceProvider } from "../webhook/webhook-provider.js";
+import type { Pusher, Guild, Channel } from "./pusher/pusher.interface.js";
 
 export class AdminModule {
   constructor(
     private readonly config: Config,
     private readonly repoConfigRepo: RepoConfigRepository,
     private readonly connectedRepoRepo: ConnectedRepoRepository,
+    private readonly pushers: Map<Platform, Pusher>,
   ) {}
 
   async getRepoConfigById(id: number): Promise<RepoConfig | null> {
@@ -50,5 +52,30 @@ export class AdminModule {
       return `https://github.com/apps/${slug}/installations/new`;
     }
     return null;
+  }
+
+  async getDiscordGuilds(): Promise<Guild[]> {
+    const discord = this.pushers.get("discord");
+    if (!discord?.listGuilds) throw new Error("Discord pusher not available");
+    return discord.listGuilds();
+  }
+
+  async getDiscordChannels(guildId: string): Promise<Channel[]> {
+    const discord = this.pushers.get("discord");
+    if (!discord) throw new Error("Discord pusher not available");
+    return discord.listChannels(guildId);
+  }
+
+  async getSlackChannels(): Promise<Channel[]> {
+    const slack = this.pushers.get("slack");
+    if (!slack) throw new Error("Slack pusher not available");
+    return slack.listChannels();
+  }
+
+  getDiscordBotInviteUrl(): string {
+    const clientId = this.config.discordClientId;
+    // Permissions: Send Messages (2048) + Add Reactions (64) + Read Message History (65536) = 67648
+    // Plus View Channels (1024) = 68672 — but the plan says 2147534848 which includes broader perms
+    return `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=2147534848&scope=bot`;
   }
 }
