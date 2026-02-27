@@ -27,6 +27,15 @@ export async function buildApp(config: Config) {
     runFirst: true,
   });
 
+  // Custom error handler — omit statusCode from responses
+  app.setErrorHandler((error: { statusCode?: number; name?: string; message: string }, _request, reply) => {
+    const status = error.statusCode ?? 500;
+    reply.code(status).send({
+      error: error.name || "Error",
+      message: error.message,
+    });
+  });
+
   // Wire dependencies
   const infra = new InfrastructureFactory(config);
   const repos = new RepositoryFactory(infra);

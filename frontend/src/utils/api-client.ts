@@ -33,7 +33,7 @@ export async function apiClient<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    ...(options.body != null && { "Content-Type": "application/json" }),
     ...options.headers,
   };
 
