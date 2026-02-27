@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { ArrowLeft } from "lucide-react";
 
 export function RepositoryConfigPage() {
@@ -48,7 +49,7 @@ export function RepositoryConfigPage() {
 
   if (isEditing && isLoading) {
     return (
-      <div className="mx-auto max-w-lg space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Skeleton className="h-8 w-48" />
         <Card>
           <CardContent className="space-y-4 pt-6">
@@ -62,7 +63,7 @@ export function RepositoryConfigPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <Button
           variant="ghost"
@@ -73,14 +74,14 @@ export function RepositoryConfigPage() {
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back
         </Button>
-        <h2 className="text-2xl font-bold tracking-tight">
-          {isEditing ? "Edit Repository" : "Add Repository"}
-        </h2>
-        <p className="text-muted-foreground">
-          {isEditing
-            ? "Update your repository notification settings"
-            : "Configure a new repository for PR notifications"}
-        </p>
+        <PageHeader
+          title={isEditing ? "Edit Repository" : "Add Repository"}
+          description={
+            isEditing
+              ? "Update your repository notification settings"
+              : "Configure a new repository for PR notifications"
+          }
+        />
       </div>
 
       <Card>

@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/ui/page-header";
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -20,12 +21,10 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Profile</h2>
-        <p className="text-muted-foreground">
-          Manage your account and platform connections
-        </p>
-      </div>
+      <PageHeader
+        title="Profile"
+        description="Manage your account and platform connections"
+      />
 
       <Card>
         <CardHeader>

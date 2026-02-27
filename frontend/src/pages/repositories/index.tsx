@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
 
 export function RepositoriesPage() {
   const { repositories, isLoading, refetch } = useRepositories();
@@ -31,20 +32,17 @@ export function RepositoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Repositories</h2>
-          <p className="text-muted-foreground">
-            Manage your repository notification configurations
-          </p>
-        </div>
+      <PageHeader
+        title="Repositories"
+        description="Manage your repository notification configurations"
+      >
         <Button asChild>
           <Link to="/repositories/new">
             <Plus className="mr-2 h-4 w-4" />
             Add Repository
           </Link>
         </Button>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardHeader>
