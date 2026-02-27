@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const configSchema = z.object({
   databaseUrl: z.string().url(),
@@ -21,15 +21,15 @@ const configSchema = z.object({
 
   githubAppSlug: z.string().min(1).optional(),
 
-  gitlabWebhookSecret: z.string().min(1).optional(),
-  bitbucketWebhookSecret: z.string().min(1).optional(),
+  gitlabWebhookSecret: z.string().optional(),
+  bitbucketWebhookSecret: z.string().optional(),
 
-  jwtSecret: z.string().min(1),
-  jwtAccessExpiry: z.string().default("15m"),
-  jwtRefreshExpiry: z.string().default("7d"),
+  jwtSecret: z.string().min(10),
+  jwtAccessExpiry: z.string().default('15m'),
+  jwtRefreshExpiry: z.string().default('7d'),
 
   port: z.coerce.number().default(3000),
-  host: z.string().default("0.0.0.0"),
+  host: z.string().default('0.0.0.0'),
   frontendUrl: z.string().url(),
 });
 
