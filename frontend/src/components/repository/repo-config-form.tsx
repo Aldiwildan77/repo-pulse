@@ -1,23 +1,28 @@
-import { useState, useEffect, useMemo, type FormEvent } from "react";
-import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
-  useDiscordGuilds,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { useConnectedRepos } from '@/hooks/use-connected-repos';
+import {
   useDiscordChannels,
+  useDiscordGuilds,
   useSlackChannels,
-} from "@/hooks/use-platforms";
-import { useConnectedRepos } from "@/hooks/use-connected-repos";
-import { API_URL } from "@/utils/constants";
-import type { Platform, SourceProvider } from "@/utils/constants";
-import type { RepoConfigInput } from "@/hooks/use-repositories";
+} from '@/hooks/use-platforms';
+import type { RepoConfigInput } from '@/hooks/use-repositories';
+import type { Platform, SourceProvider } from '@/utils/constants';
+import { API_URL } from '@/utils/constants';
+import { ExternalLinkIcon, RefreshCwIcon, SettingsIcon } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 interface RepoConfigFormProps {
   initialValues?: RepoConfigInput;
@@ -26,10 +31,10 @@ interface RepoConfigFormProps {
 }
 
 const defaultValues: RepoConfigInput = {
-  provider: "github",
-  providerRepo: "",
-  platform: "discord",
-  channelId: "",
+  provider: 'github',
+  providerRepo: '',
+  platform: 'discord',
+  channelId: '',
 };
 
 export function RepoConfigForm({
@@ -49,48 +54,24 @@ export function RepoConfigForm({
   } = useConnectedRepos();
 
   const { guilds, isLoading: guildsLoading } = useDiscordGuilds();
+
+  // Derive the active guild: user selection takes priority, otherwise auto-select first guild when editing
+  const activeGuildId = useMemo(() => {
+    if (selectedGuildId) return selectedGuildId;
+    if (
+      initialValues?.platform === 'discord' &&
+      initialValues.channelId &&
+      guilds.length > 0
+    ) {
+      return guilds[0].id;
+    }
+    return null;
+  }, [selectedGuildId, initialValues, guilds]);
+
   const { channels: discordChannels, isLoading: discordChannelsLoading } =
-    useDiscordChannels(
-      values.platform === "discord" ? selectedGuildId : null,
-    );
+    useDiscordChannels(values.platform === 'discord' ? activeGuildId : null);
   const { channels: slackChannels, isLoading: slackChannelsLoading } =
     useSlackChannels();
-
-  // When editing, try to find and pre-select the guild that contains the existing channel
-  useEffect(() => {
-    if (
-      initialValues?.platform === "discord" &&
-      initialValues.channelId &&
-      guilds.length > 0 &&
-      !selectedGuildId
-    ) {
-      // Auto-select the first guild; the channel will be matched once channels load
-      setSelectedGuildId(guilds[0].id);
-    }
-  }, [initialValues, guilds, selectedGuildId]);
-
-  // When editing discord and channels load, auto-select matching channel's guild
-  useEffect(() => {
-    if (
-      initialValues?.platform === "discord" &&
-      initialValues.channelId &&
-      discordChannels.length > 0
-    ) {
-      const found = discordChannels.find(
-        (ch) => ch.id === initialValues.channelId,
-      );
-      if (found) return; // channel found in current guild, all good
-
-      // Try next guild if channel not found
-      if (guilds.length > 0 && selectedGuildId) {
-        const currentIdx = guilds.findIndex((g) => g.id === selectedGuildId);
-        const nextGuild = guilds[currentIdx + 1];
-        if (nextGuild) {
-          setSelectedGuildId(nextGuild.id);
-        }
-      }
-    }
-  }, [initialValues, discordChannels, guilds, selectedGuildId]);
 
   const filteredRepos = useMemo(
     () => connectedRepos.filter((r) => r.provider === values.provider),
@@ -99,19 +80,19 @@ export function RepoConfigForm({
 
   // Reset providerRepo when provider changes
   const handleProviderChange = (provider: SourceProvider) => {
-    setValues((prev) => ({ ...prev, provider, providerRepo: "" }));
+    setValues((prev) => ({ ...prev, provider, providerRepo: '' }));
   };
 
   // Reset channel when platform changes
   const handlePlatformChange = (platform: Platform) => {
-    setValues((prev) => ({ ...prev, platform, channelId: "" }));
+    setValues((prev) => ({ ...prev, platform, channelId: '' }));
     setSelectedGuildId(null);
   };
 
   // Reset channel when guild changes
   const handleGuildChange = (guildId: string) => {
     setSelectedGuildId(guildId);
-    setValues((prev) => ({ ...prev, channelId: "" }));
+    setValues((prev) => ({ ...prev, channelId: '' }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -120,33 +101,62 @@ export function RepoConfigForm({
   };
 
   const channels =
-    values.platform === "discord" ? discordChannels : slackChannels;
+    values.platform === 'discord' ? discordChannels : slackChannels;
   const channelsLoading =
-    values.platform === "discord"
+    values.platform === 'discord'
       ? discordChannelsLoading
       : slackChannelsLoading;
 
+  const providerName = {
+    github: 'GitHub',
+    gitlab: 'GitLab',
+    bitbucket: 'Bitbucket',
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="provider">Source Provider</Label>
+    <form onSubmit={handleSubmit} className='space-y-6'>
+      <div className='space-y-2'>
+        <div className='flex items-center gap-2'>
+          <Label htmlFor='provider'>Source Provider</Label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon'
+                className='h-5 w-5'
+                onClick={() =>
+                  window.open(
+                    `${API_URL}/api/providers/${values.provider}/install`,
+                    '_blank',
+                  )
+                }
+              >
+                <SettingsIcon className='h-3.5 w-3.5' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Configure {providerName[values.provider]} App settings
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <Select
           value={values.provider}
           onValueChange={(v: SourceProvider) => handleProviderChange(v)}
         >
-          <SelectTrigger id="provider">
+          <SelectTrigger id='provider'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="github">GitHub</SelectItem>
-            <SelectItem value="gitlab">GitLab</SelectItem>
-            <SelectItem value="bitbucket">Bitbucket</SelectItem>
+            <SelectItem value='github'>GitHub</SelectItem>
+            <SelectItem value='gitlab'>GitLab</SelectItem>
+            <SelectItem value='bitbucket'>Bitbucket</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="providerRepo">Repository</Label>
+      <div className='space-y-2'>
+        <Label htmlFor='providerRepo'>Repository</Label>
         {filteredRepos.length > 0 || reposLoading ? (
           <Select
             value={values.providerRepo}
@@ -155,12 +165,12 @@ export function RepoConfigForm({
             }
             disabled={reposLoading}
           >
-            <SelectTrigger id="providerRepo">
+            <SelectTrigger id='providerRepo'>
               <SelectValue
                 placeholder={
                   reposLoading
-                    ? "Loading repositories..."
-                    : "Select a repository"
+                    ? 'Loading repositories...'
+                    : 'Select a repository'
                 }
               />
             </SelectTrigger>
@@ -182,33 +192,33 @@ export function RepoConfigForm({
             </SelectContent>
           </Select>
         ) : (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted-foreground">
+          <div className='flex flex-col gap-2'>
+            <p className='text-sm text-muted-foreground'>
               No connected repositories found.
             </p>
-            {values.provider === "github" && (
-              <div className="flex gap-2">
+            {values.provider === 'github' && (
+              <div className='flex gap-2'>
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                  type='button'
+                  variant='outline'
+                  size='sm'
                   onClick={() =>
                     window.open(
                       `${API_URL}/api/providers/${values.provider}/install`,
-                      "_blank",
+                      '_blank',
                     )
                   }
                 >
-                  <ExternalLinkIcon className="mr-1 h-4 w-4" />
+                  <ExternalLinkIcon className='mr-1 h-4 w-4' />
                   Install GitHub App
                 </Button>
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
+                  type='button'
+                  variant='ghost'
+                  size='sm'
                   onClick={refetchRepos}
                 >
-                  <RefreshCwIcon className="mr-1 h-4 w-4" />
+                  <RefreshCwIcon className='mr-1 h-4 w-4' />
                   Refresh
                 </Button>
               </div>
@@ -217,34 +227,34 @@ export function RepoConfigForm({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="platform">Platform</Label>
+      <div className='space-y-2'>
+        <Label htmlFor='platform'>Platform</Label>
         <Select
           value={values.platform}
           onValueChange={(v: Platform) => handlePlatformChange(v)}
         >
-          <SelectTrigger id="platform">
+          <SelectTrigger id='platform'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="discord">Discord</SelectItem>
-            <SelectItem value="slack">Slack</SelectItem>
+            <SelectItem value='discord'>Discord</SelectItem>
+            <SelectItem value='slack'>Slack</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {values.platform === "discord" && (
-        <div className="space-y-2">
-          <Label htmlFor="guild">Server</Label>
+      {values.platform === 'discord' && (
+        <div className='space-y-2'>
+          <Label htmlFor='guild'>Server</Label>
           <Select
-            value={selectedGuildId ?? ""}
+            value={activeGuildId ?? ''}
             onValueChange={handleGuildChange}
             disabled={guildsLoading}
           >
-            <SelectTrigger id="guild">
+            <SelectTrigger id='guild'>
               <SelectValue
                 placeholder={
-                  guildsLoading ? "Loading servers..." : "Select a server"
+                  guildsLoading ? 'Loading servers...' : 'Select a server'
                 }
               />
             </SelectTrigger>
@@ -256,30 +266,32 @@ export function RepoConfigForm({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
+          <p className='text-xs text-muted-foreground'>
             Select the Discord server where the bot is installed
           </p>
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="channelId">Channel</Label>
+      <div className='space-y-2'>
+        <Label htmlFor='channelId'>Channel</Label>
         <Select
           value={values.channelId}
-          onValueChange={(v) => setValues((prev) => ({ ...prev, channelId: v }))}
+          onValueChange={(v) =>
+            setValues((prev) => ({ ...prev, channelId: v }))
+          }
           disabled={
             channelsLoading ||
-            (values.platform === "discord" && !selectedGuildId)
+            (values.platform === 'discord' && !activeGuildId)
           }
         >
-          <SelectTrigger id="channelId">
+          <SelectTrigger id='channelId'>
             <SelectValue
               placeholder={
                 channelsLoading
-                  ? "Loading channels..."
-                  : values.platform === "discord" && !selectedGuildId
-                    ? "Select a server first"
-                    : "Select a channel"
+                  ? 'Loading channels...'
+                  : values.platform === 'discord' && !activeGuildId
+                    ? 'Select a server first'
+                    : 'Select a channel'
               }
             />
           </SelectTrigger>
@@ -291,18 +303,18 @@ export function RepoConfigForm({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">
-          The {values.platform === "discord" ? "Discord" : "Slack"} channel
+        <p className='text-xs text-muted-foreground'>
+          The {values.platform === 'discord' ? 'Discord' : 'Slack'} channel
           where notifications will be sent
         </p>
       </div>
 
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button type='submit' disabled={isSubmitting} className='w-full'>
         {isSubmitting
-          ? "Saving..."
+          ? 'Saving...'
           : initialValues
-            ? "Update Repository"
-            : "Add Repository"}
+            ? 'Update Repository'
+            : 'Add Repository'}
       </Button>
     </form>
   );
