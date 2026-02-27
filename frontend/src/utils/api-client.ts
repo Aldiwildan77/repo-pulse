@@ -56,7 +56,11 @@ export async function apiClient<T>(
   }
 
   if (response.status === 401) {
-    window.location.href = "/login";
+    // Don't force redirect for auth-check endpoints — let the AuthProvider
+    // handle unauthenticated state via ProtectedRoute navigation.
+    if (path !== "/api/auth/me") {
+      window.location.href = "/login";
+    }
     throw new ApiError(401, "Unauthorized");
   }
 
