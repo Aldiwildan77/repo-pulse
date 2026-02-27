@@ -56,6 +56,7 @@ export class AuthHandler {
         sameSite: "lax",
         path: "/",
         maxAge: ACCESS_TOKEN_MAX_AGE,
+        ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
       })
       .setCookie("refreshToken", refreshToken, {
         httpOnly: true,
@@ -63,6 +64,7 @@ export class AuthHandler {
         sameSite: "lax",
         path: "/api/auth",
         maxAge: REFRESH_TOKEN_MAX_AGE,
+        ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
       })
       .redirect(this.config.frontendUrl);
   }
@@ -148,6 +150,7 @@ export class AuthHandler {
           sameSite: "lax",
           path: "/",
           maxAge: ACCESS_TOKEN_MAX_AGE,
+          ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
         })
         .setCookie("refreshToken", refreshToken, {
           httpOnly: true,
@@ -155,6 +158,7 @@ export class AuthHandler {
           sameSite: "lax",
           path: "/api/auth",
           maxAge: REFRESH_TOKEN_MAX_AGE,
+          ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
         })
         .send({ status: "ok" });
     } catch {
@@ -164,8 +168,14 @@ export class AuthHandler {
 
   private async logout(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
     reply
-      .clearCookie("accessToken", { path: "/" })
-      .clearCookie("refreshToken", { path: "/api/auth" })
+      .clearCookie("accessToken", {
+        path: "/",
+        ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
+      })
+      .clearCookie("refreshToken", {
+        path: "/api/auth",
+        ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
+      })
       .send({ status: "ok" });
   }
 }

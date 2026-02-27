@@ -31,6 +31,7 @@ const configSchema = z.object({
   port: z.coerce.number().default(3000),
   host: z.string().default('0.0.0.0'),
   frontendUrl: z.string().url(),
+  cookieDomain: z.string().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -67,5 +68,6 @@ export function loadConfig(): Config {
     port: process.env.PORT,
     host: process.env.HOST,
     frontendUrl: process.env.FRONTEND_URL,
+    cookieDomain: process.env.COOKIE_DOMAIN,
   });
 }
