@@ -22,6 +22,7 @@ export class AdminModule {
   }
 
   async createRepoConfig(data: {
+    provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
     channelId: string;

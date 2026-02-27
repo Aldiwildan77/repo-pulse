@@ -1,7 +1,8 @@
-import type { Platform, RepoConfig } from "../entities/index.js";
+import type { Platform, RepoConfig, SourceProvider } from "../entities/index.js";
 
 export interface RepoConfigRepository {
   create(data: {
+    provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
     channelId: string;

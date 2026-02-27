@@ -52,6 +52,7 @@ export function RepoList({
       <TableHeader>
         <TableRow>
           <TableHead>Repository</TableHead>
+          <TableHead>Provider</TableHead>
           <TableHead>Platform</TableHead>
           <TableHead>Channel ID</TableHead>
           <TableHead>Status</TableHead>
@@ -62,6 +63,9 @@ export function RepoList({
         {repositories.map((repo) => (
           <TableRow key={repo.id}>
             <TableCell className="font-medium">{repo.providerRepo}</TableCell>
+            <TableCell>
+              <Badge variant="secondary">{repo.provider}</Badge>
+            </TableCell>
             <TableCell>
               <Badge variant="outline">{repo.platform}</Badge>
             </TableCell>

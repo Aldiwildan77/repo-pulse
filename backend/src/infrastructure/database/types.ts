@@ -40,6 +40,7 @@ export type UserBindingUpdate = Updateable<UserBindingTable>;
 
 export interface RepoConfigTable {
   id: Generated<number>;
+  provider: "github" | "gitlab" | "bitbucket";
   provider_repo: string;
   platform: "discord" | "slack";
   channel_id: string;

@@ -4,6 +4,7 @@ import type { RepoConfigRow } from "../../infrastructure/database/types.js";
 export function toRepoConfig(row: RepoConfigRow): RepoConfig {
   return {
     id: row.id,
+    provider: row.provider,
     providerRepo: row.provider_repo,
     platform: row.platform,
     channelId: row.channel_id,

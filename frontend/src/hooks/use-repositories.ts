@@ -2,10 +2,11 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { apiClient } from "@/utils/api-client";
 import { useApi } from "./use-api";
-import type { Platform } from "@/utils/constants";
+import type { Platform, SourceProvider } from "@/utils/constants";
 
 export interface RepoConfig {
   id: number;
+  provider: SourceProvider;
   providerRepo: string;
   platform: Platform;
   channelId: string;
@@ -15,6 +16,7 @@ export interface RepoConfig {
 }
 
 export interface RepoConfigInput {
+  provider: SourceProvider;
   providerRepo: string;
   platform: Platform;
   channelId: string;

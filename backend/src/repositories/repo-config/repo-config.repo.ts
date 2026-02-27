@@ -1,13 +1,14 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../../infrastructure/database/types.js";
 import type { RepoConfigRepository } from "../../core/repositories/repo-config.repository.js";
-import type { Platform, RepoConfig } from "../../core/entities/index.js";
+import type { Platform, RepoConfig, SourceProvider } from "../../core/entities/index.js";
 import { toRepoConfig } from "./dto.js";
 
 export class KyselyRepoConfigRepository implements RepoConfigRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
   async create(data: {
+    provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
     channelId: string;
@@ -15,12 +16,13 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     const row = await this.db
       .insertInto("repo_configs")
       .values({
+        provider: data.provider,
         provider_repo: data.providerRepo,
         platform: data.platform,
         channel_id: data.channelId,
       })
       .onConflict((oc) =>
-        oc.columns(["provider_repo", "platform"]).doUpdateSet({
+        oc.columns(["provider", "provider_repo", "platform"]).doUpdateSet({
           channel_id: data.channelId,
           is_active: true,
           updated_at: new Date(),

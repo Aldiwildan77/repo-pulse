@@ -82,12 +82,12 @@ export class AdminHandler {
 
   private async createConfig(
     request: FastifyRequest<{
-      Body: { providerRepo: string; platform: Platform; channelId: string };
+      Body: { provider: SourceProvider; providerRepo: string; platform: Platform; channelId: string };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const { providerRepo, platform, channelId } = request.body;
-    const config = await this.admin.createRepoConfig({ providerRepo, platform, channelId });
+    const { provider, providerRepo, platform, channelId } = request.body;
+    const config = await this.admin.createRepoConfig({ provider, providerRepo, platform, channelId });
     reply.code(201).send(config);
   }
 

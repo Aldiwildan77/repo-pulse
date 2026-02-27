@@ -14,7 +14,7 @@ import {
   useDiscordChannels,
   useSlackChannels,
 } from "@/hooks/use-platforms";
-import type { Platform } from "@/utils/constants";
+import type { Platform, SourceProvider } from "@/utils/constants";
 import type { RepoConfigInput } from "@/hooks/use-repositories";
 
 interface RepoConfigFormProps {
@@ -24,6 +24,7 @@ interface RepoConfigFormProps {
 }
 
 const defaultValues: RepoConfigInput = {
+  provider: "github",
   providerRepo: "",
   platform: "discord",
   channelId: "",
@@ -109,6 +110,25 @@ export function RepoConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="provider">Source Provider</Label>
+        <Select
+          value={values.provider}
+          onValueChange={(v: SourceProvider) =>
+            setValues((prev) => ({ ...prev, provider: v }))
+          }
+        >
+          <SelectTrigger id="provider">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="github">GitHub</SelectItem>
+            <SelectItem value="gitlab">GitLab</SelectItem>
+            <SelectItem value="bitbucket">Bitbucket</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="providerRepo">Repository</Label>
         <Input
