@@ -36,6 +36,16 @@ export interface CommentEvent {
   mentionedUsernames: string[];
 }
 
+export interface PrLabelChangedEvent {
+  prId: number;
+  repo: string;
+  action: "labeled" | "unlabeled";
+  label: { name: string; color: string };
+  author: string;
+  prTitle: string;
+  prUrl: string;
+}
+
 export class NotifierModule {
   constructor(
     private readonly config: Config,
@@ -93,6 +103,57 @@ export class NotifierModule {
         });
       } catch (err) {
         this.logger.error("Failed to send PR notification", {
+          error: String(err),
+          repo: event.repo,
+          prId: event.prId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      }
+    }
+  }
+
+  async handlePrLabelChanged(event: PrLabelChangedEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+
+    if (configs.length === 0) {
+      this.logger.warn("No active repo configs found for label notification", {
+        repo: event.repo,
+        prId: event.prId,
+      });
+      return;
+    }
+
+    for (const cfg of configs) {
+      try {
+        const pusher = this.pushers.get(cfg.platform);
+        if (!pusher) {
+          this.logger.warn("No pusher registered for platform", {
+            platform: cfg.platform,
+            repo: event.repo,
+          });
+          continue;
+        }
+
+        await pusher.sendLabelNotification(cfg.channelId, {
+          repo: event.repo,
+          prTitle: event.prTitle,
+          prUrl: event.prUrl,
+          action: event.action,
+          label: event.label,
+          author: event.author,
+        });
+
+        this.logger.info("Label notification sent", {
+          repo: event.repo,
+          prId: event.prId,
+          action: event.action,
+          label: event.label.name,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      } catch (err) {
+        this.logger.error("Failed to send label notification", {
           error: String(err),
           repo: event.repo,
           prId: event.prId,

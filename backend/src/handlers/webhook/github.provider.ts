@@ -82,6 +82,25 @@ export class GitHubWebhookProvider implements WebhookProvider {
       };
     }
 
+    if (action === "labeled" || action === "unlabeled") {
+      const label = payload.label as Record<string, unknown>;
+      return {
+        kind: "pr_label_changed",
+        data: {
+          prId: pr.number as number,
+          repo,
+          action,
+          label: {
+            name: label.name as string,
+            color: label.color as string,
+          },
+          author: (pr.user as Record<string, unknown>).login as string,
+          prTitle: pr.title as string,
+          prUrl: pr.html_url as string,
+        },
+      };
+    }
+
     return { kind: "ignored" };
   }
 

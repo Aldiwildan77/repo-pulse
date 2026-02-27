@@ -1,5 +1,5 @@
 import { WebClient } from "@slack/web-api";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload, Channel } from "./pusher.interface.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, Channel } from "./pusher.interface.js";
 
 export class SlackPusher implements Pusher {
   private readonly client: WebClient;
@@ -55,6 +55,32 @@ export class SlackPusher implements Pusher {
         },
       ],
       text: `${payload.commenter} mentioned you in ${payload.prTitle}`,
+    });
+  }
+
+  async sendLabelNotification(channelId: string, payload: LabelNotificationPayload): Promise<void> {
+    const actionText = payload.action === "labeled" ? "Label Added" : "Label Removed";
+    const emoji = payload.action === "labeled" ? ":label:" : ":wastebasket:";
+
+    await this.client.chat.postMessage({
+      channel: channelId,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: [
+              `${emoji} *${actionText}*`,
+              `*Repo:* ${payload.repo}`,
+              `*PR:* ${payload.prTitle}`,
+              `*Label:* \`${payload.label.name}\``,
+              `*By:* @${payload.author}`,
+              `*Link:* <${payload.prUrl}|View PR>`,
+            ].join("\n"),
+          },
+        },
+      ],
+      text: `${actionText}: ${payload.label.name} on ${payload.prTitle}`,
     });
   }
 

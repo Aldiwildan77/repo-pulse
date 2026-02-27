@@ -13,6 +13,15 @@ export interface MentionNotificationPayload {
   commentBody: string;
 }
 
+export interface LabelNotificationPayload {
+  repo: string;
+  prTitle: string;
+  prUrl: string;
+  action: "labeled" | "unlabeled";
+  label: { name: string; color: string };
+  author: string;
+}
+
 export interface Guild {
   id: string;
   name: string;
@@ -33,6 +42,11 @@ export interface Pusher {
   sendMentionNotification(
     userId: string,
     payload: MentionNotificationPayload,
+  ): Promise<void>;
+
+  sendLabelNotification(
+    channelId: string,
+    payload: LabelNotificationPayload,
   ): Promise<void>;
 
   addReaction(
