@@ -33,7 +33,7 @@ export function IntegrationsSection() {
             Seamless integrations
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Repo Pulse sits between GitHub and your communication platforms.
+            Repo Pulse sits between your repositories and communication platforms.
           </p>
         </AnimatedSection>
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { GitFork, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { API_URL } from "@/utils/constants";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -32,7 +32,7 @@ export function LandingNavbar() {
             </a>
           ))}
           <Button asChild size="sm">
-            <a href={`${API_URL}/api/auth/github`}>Login with GitHub</a>
+            <Link to="/login">Sign In</Link>
           </Button>
         </nav>
 
@@ -64,7 +64,7 @@ export function LandingNavbar() {
             </a>
           ))}
           <Button asChild size="sm" className="mt-2 w-full">
-            <a href={`${API_URL}/api/auth/github`}>Login with GitHub</a>
+            <Link to="/login">Sign In</Link>
           </Button>
         </div>
       </div>

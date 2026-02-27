@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { API_URL } from "@/utils/constants";
-import { Github } from "lucide-react";
 import { NotificationMockup } from "./notification-mockup";
 
 export function HeroSection() {
@@ -20,7 +20,7 @@ export function HeroSection() {
               transition={{ duration: 0.5 }}
             >
               <span className="inline-block rounded-full border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                Open Source GitHub Integration
+                Open Source PR Integration
               </span>
             </motion.div>
 
@@ -39,9 +39,9 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="mt-4 text-lg text-muted-foreground sm:text-xl"
             >
-              Bridge your GitHub pull requests to Discord and Slack. Get
-              real-time notifications, mention routing, and automatic status
-              updates — all in the channels your team already uses.
+              Bridge your pull requests to Discord and Slack. Get real-time
+              notifications, mention routing, and automatic status updates — all
+              in the channels your team already uses.
             </motion.p>
 
             <motion.div
@@ -51,10 +51,10 @@ export function HeroSection() {
               className="mt-8 flex flex-wrap justify-center gap-4 lg:justify-start"
             >
               <Button asChild size="lg">
-                <a href={`${API_URL}/api/auth/github`}>
-                  <Github className="mr-2 h-5 w-5" />
+                <Link to="/login">
                   Get Started Free
-                </a>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
                 <a href="#features">Learn More</a>

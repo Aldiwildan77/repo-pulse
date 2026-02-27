@@ -1,11 +1,11 @@
-import { Github, Link2, Settings, Bell } from "lucide-react";
+import { LogIn, Link2, Settings, Bell } from "lucide-react";
 import { AnimatedSection } from "./animated-section";
 
 const steps = [
   {
-    icon: Github,
-    title: "Login with GitHub",
-    description: "Authenticate with your GitHub account in one click.",
+    icon: LogIn,
+    title: "Sign In",
+    description: "Authenticate with your account in one click.",
   },
   {
     icon: Link2,

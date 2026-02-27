@@ -1,6 +1,6 @@
-import { Github } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { API_URL } from "@/utils/constants";
 import { AnimatedSection } from "./animated-section";
 
 export function CtaSection() {
@@ -15,10 +15,10 @@ export function CtaSection() {
             Set up in under two minutes. Free and open source.
           </p>
           <Button asChild size="lg" className="mt-8">
-            <a href={`${API_URL}/api/auth/github`}>
-              <Github className="mr-2 h-5 w-5" />
+            <Link to="/login">
               Get Started Free
-            </a>
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </Button>
         </AnimatedSection>
       </div>
