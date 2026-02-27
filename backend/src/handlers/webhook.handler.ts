@@ -42,6 +42,13 @@ export class WebhookHandler {
 
     // Verify signature
     if (!provider.verifySignature(request)) {
+      this.logger.warn("Webhook signature verification failed", {
+        provider: providerName,
+        hasRawBody: !!request.rawBody,
+        rawBodyLength: request.rawBody ? Buffer.byteLength(request.rawBody) : 0,
+        hasSignatureHeader: !!request.headers["x-hub-signature-256"],
+        contentType: request.headers["content-type"] ?? "unknown",
+      });
       reply.code(401).send({ error: "Invalid signature" });
       return;
     }

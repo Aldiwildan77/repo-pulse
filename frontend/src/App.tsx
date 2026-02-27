@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router";
+import { Analytics } from "@vercel/analytics/react";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -11,6 +12,8 @@ import { NotFoundPage } from "@/pages/not-found";
 
 export default function App() {
   return (
+    <>
+    <Analytics />
     <Routes>
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
@@ -28,5 +31,6 @@ export default function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   );
 }

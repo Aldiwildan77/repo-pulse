@@ -1,4 +1,4 @@
-name: Build & Deploy Backend
+name: Deploy
 
 on:
   push:
@@ -8,7 +8,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  backend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,3 +36,20 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+
+      - name: Deploy to Dokploy
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d '{"image": "${IMAGE}:latest"}' ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
+          working-directory: ./frontend
