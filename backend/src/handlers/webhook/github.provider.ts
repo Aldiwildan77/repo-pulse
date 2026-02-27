@@ -18,7 +18,12 @@ export class GitHubWebhookProvider implements WebhookProvider {
       "sha256=" +
       crypto.createHmac("sha256", this.secret).update(body).digest("hex");
 
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    const sigBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expected);
+
+    if (sigBuf.length !== expectedBuf.length) return false;
+
+    return crypto.timingSafeEqual(sigBuf, expectedBuf);
   }
 
   extractDeliveryId(request: FastifyRequest): string | null {

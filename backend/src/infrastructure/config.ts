@@ -4,7 +4,7 @@ const configSchema = z.object({
   databaseUrl: z.string().url(),
   redisUrl: z.string().url(),
 
-  githubWebhookSecret: z.string().min(1),
+  githubWebhookSecret: z.string().trim().min(1),
   githubClientId: z.string().min(1),
   githubClientSecret: z.string().min(1),
   githubCallbackUrl: z.string().url(),

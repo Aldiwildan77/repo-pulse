@@ -14,7 +14,7 @@ export function LoginPage() {
   const { user, isLoading } = useAuth();
 
   if (!isLoading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
