@@ -8,6 +8,7 @@ const links = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How It Works" },
   { href: "#integrations", label: "Integrations" },
+  { href: "#faq", label: "FAQ" },
 ];
 
 export function LandingNavbar() {
