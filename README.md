@@ -1,6 +1,8 @@
 # Repo Pulse
 
-A webhook-driven integration platform that bridges GitHub pull request events to Discord and Slack. Get real-time PR notifications, mention routing, and status synchronization between GitHub and your team's chat platforms.
+A webhook-driven integration platform that bridges GitHub/Gitlab/Bitbucket/Others pull request events to Discord and Slack. Get real-time PR notifications, mention routing, and status synchronization to your team's chat platforms.
+
+https://github.com/user-attachments/assets/e8c20e4e-b069-4636-8904-164640339572
 
 ## Features
 
