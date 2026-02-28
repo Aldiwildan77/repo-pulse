@@ -42,6 +42,10 @@ export class GitHubWebhookProvider implements WebhookProvider {
       return this.parseIssueComment(payload);
     }
 
+    if (eventType === "pull_request_review") {
+      return this.parsePullRequestReview(payload);
+    }
+
     if (eventType === "issues") {
       return this.parseIssue(payload);
     }
@@ -106,6 +110,33 @@ export class GitHubWebhookProvider implements WebhookProvider {
     }
 
     return { kind: "ignored" };
+  }
+
+  private parsePullRequestReview(payload: Record<string, unknown>): WebhookEvent {
+    const action = payload.action as string;
+    if (action !== "submitted") return { kind: "ignored" };
+
+    const review = payload.review as Record<string, unknown>;
+    const state = review.state as string;
+
+    if (state !== "approved" && state !== "changes_requested") {
+      return { kind: "ignored" };
+    }
+
+    const pr = payload.pull_request as Record<string, unknown>;
+    const repo = (payload.repository as Record<string, unknown>).full_name as string;
+
+    return {
+      kind: "pr_review",
+      data: {
+        prId: pr.number as number,
+        repo,
+        prTitle: pr.title as string,
+        prUrl: pr.html_url as string,
+        reviewer: (review.user as Record<string, unknown>).login as string,
+        state: state as "approved" | "changes_requested",
+      },
+    };
   }
 
   private parseInstallation(payload: Record<string, unknown>): WebhookEvent {

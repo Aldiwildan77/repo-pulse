@@ -15,6 +15,8 @@ import { useRepositoryMutations, type RepoEventToggle } from "@/hooks/use-reposi
 const EVENT_TYPES = [
   { key: "pr_opened", label: "PR Opened" },
   { key: "pr_merged", label: "PR Merged / Closed" },
+  { key: "pr_review_approved", label: "PR Approved" },
+  { key: "pr_review_changes_requested", label: "PR Changes Requested" },
   { key: "pr_label", label: "PR Label Changed" },
   { key: "comment", label: "Mentions in Comments" },
   { key: "issue_opened", label: "Issue Opened" },

@@ -22,6 +22,17 @@ export interface RepoEventToggle {
   isEnabled: boolean;
 }
 
+export interface NotifierLog {
+  id: number;
+  repoConfigId: number;
+  eventType: string;
+  status: string;
+  platform: string;
+  summary: string;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
 export interface RepoConfigInput {
   provider: SourceProvider;
   providerRepo: string;
@@ -84,5 +95,15 @@ export function useRepositoryMutations() {
     });
   }, []);
 
-  return { create, update, remove, toggleActive, getEventToggles, upsertEventToggle };
+  const getNotifierLogs = useCallback(
+    async (id: number, limit = 50, offset = 0) => {
+      return apiClient<{
+        logs: NotifierLog[];
+        total: number;
+      }>(`/api/repos/config/${id}/logs?limit=${limit}&offset=${offset}`);
+    },
+    [],
+  );
+
+  return { create, update, remove, toggleActive, getEventToggles, upsertEventToggle, getNotifierLogs };
 }

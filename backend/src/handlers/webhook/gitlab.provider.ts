@@ -36,6 +36,10 @@ export class GitLabWebhookProvider implements WebhookProvider {
       return this.parseNote(payload);
     }
 
+    if (eventType === "Merge Request Approval Hook" || eventType === "Merge Request Unapproval Hook") {
+      return this.parseMergeRequestApproval(payload, eventType);
+    }
+
     return { kind: "ignored" };
   }
 
@@ -82,6 +86,26 @@ export class GitLabWebhookProvider implements WebhookProvider {
     }
 
     return { kind: "ignored" };
+  }
+
+  private parseMergeRequestApproval(payload: Record<string, unknown>, eventType: string): WebhookEvent {
+    const attrs = payload.object_attributes as Record<string, unknown>;
+    const project = payload.project as Record<string, unknown>;
+    const user = payload.user as Record<string, unknown>;
+    const repo = project.path_with_namespace as string;
+    const isApproved = eventType === "Merge Request Approval Hook";
+
+    return {
+      kind: "pr_review",
+      data: {
+        prId: attrs.iid as number,
+        repo,
+        prTitle: attrs.title as string,
+        prUrl: attrs.url as string,
+        reviewer: user.username as string,
+        state: isApproved ? "approved" : "changes_requested",
+      },
+    };
   }
 
   private parseNote(payload: Record<string, unknown>): WebhookEvent {

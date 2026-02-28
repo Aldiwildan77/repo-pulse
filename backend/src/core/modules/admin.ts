@@ -1,7 +1,8 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
-import type { Platform, RepoConfig, RepoEventToggle, ConnectedRepo } from "../entities/index.js";
+import type { NotifierLogRepository } from "../repositories/notifier-log.repository.js";
+import type { Platform, RepoConfig, RepoEventToggle, ConnectedRepo, NotifierLog } from "../entities/index.js";
 import type { SourceProvider } from "../webhook/webhook-provider.js";
 import type { Pusher, Guild, Channel } from "./pusher/pusher.interface.js";
 
@@ -10,6 +11,7 @@ export class AdminModule {
     private readonly config: Config,
     private readonly repoConfigRepo: RepoConfigRepository,
     private readonly connectedRepoRepo: ConnectedRepoRepository,
+    private readonly notifierLogRepo: NotifierLogRepository,
     private readonly pushers: Map<Platform, Pusher>,
   ) {}
 
@@ -51,6 +53,14 @@ export class AdminModule {
 
   async upsertEventToggle(repoConfigId: number, eventType: string, isEnabled: boolean): Promise<void> {
     return this.repoConfigRepo.upsertEventToggle(repoConfigId, eventType, isEnabled);
+  }
+
+  async getNotifierLogs(
+    repoConfigId: number,
+    limit: number,
+    offset: number,
+  ): Promise<{ logs: NotifierLog[]; total: number }> {
+    return this.notifierLogRepo.findByRepoConfig(repoConfigId, limit, offset);
   }
 
   async getConnectedRepos(userId: string): Promise<ConnectedRepo[]> {

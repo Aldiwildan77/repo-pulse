@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -160,38 +161,38 @@ export function RepoConfigForm({
 
           <FormField label="Repository" htmlFor="providerRepo">
             {filteredRepos.length > 0 || reposLoading ? (
-              <Select
+              <Combobox
+                id="providerRepo"
+                options={[
+                  ...(initialValues?.providerRepo &&
+                  !filteredRepos.some(
+                    (r) => r.providerRepo === initialValues.providerRepo,
+                  )
+                    ? [
+                        {
+                          value: initialValues.providerRepo,
+                          label: initialValues.providerRepo,
+                        },
+                      ]
+                    : []),
+                  ...filteredRepos.map((r) => ({
+                    value: r.providerRepo,
+                    label: r.providerRepo,
+                  })),
+                ]}
                 value={values.providerRepo}
                 onValueChange={(v) =>
                   setValues((prev) => ({ ...prev, providerRepo: v }))
                 }
                 disabled={reposLoading}
-              >
-                <SelectTrigger id="providerRepo">
-                  <SelectValue
-                    placeholder={
-                      reposLoading
-                        ? "Loading repositories..."
-                        : "Select a repository"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {initialValues?.providerRepo &&
-                    !filteredRepos.some(
-                      (r) => r.providerRepo === initialValues.providerRepo,
-                    ) && (
-                      <SelectItem value={initialValues.providerRepo}>
-                        {initialValues.providerRepo}
-                      </SelectItem>
-                    )}
-                  {filteredRepos.map((r) => (
-                    <SelectItem key={r.id} value={r.providerRepo}>
-                      {r.providerRepo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder={
+                  reposLoading
+                    ? "Loading repositories..."
+                    : "Select a repository"
+                }
+                searchPlaceholder="Search repositories..."
+                emptyMessage="No matching repositories."
+              />
             ) : (
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-foreground">

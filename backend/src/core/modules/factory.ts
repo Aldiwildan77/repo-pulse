@@ -29,6 +29,7 @@ export class ModuleFactory {
       repos.userBinding,
       repos.webhookEvent,
       repos.connectedRepo,
+      repos.notifierLog,
       pushers,
       infra.logger.child({ module: "notifier" }),
     );
@@ -47,6 +48,6 @@ export class ModuleFactory {
       this.totp,
     );
 
-    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, pushers);
+    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, repos.notifierLog, pushers);
   }
 }

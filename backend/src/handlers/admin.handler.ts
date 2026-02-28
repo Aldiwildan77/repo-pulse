@@ -53,6 +53,11 @@ export class AdminHandler {
       handler: this.upsertEventToggle.bind(this),
     });
 
+    app.get("/api/repos/config/:id/logs", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getNotifierLogs.bind(this),
+    });
+
     app.get<{ Params: { provider: string } }>("/api/providers/:provider/install", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getProviderInstallUrl.bind(this),
@@ -169,6 +174,20 @@ export class AdminHandler {
     const { eventType, isEnabled } = request.body;
     await this.admin.upsertEventToggle(id, eventType, isEnabled);
     reply.code(204).send();
+  }
+
+  private async getNotifierLogs(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Querystring: { limit?: string; offset?: string };
+    }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const id = parseInt(request.params.id, 10);
+    const limit = Math.min(parseInt((request.query as Record<string, string>).limit ?? "50", 10), 100);
+    const offset = parseInt((request.query as Record<string, string>).offset ?? "0", 10);
+    const result = await this.admin.getNotifierLogs(id, limit, offset);
+    reply.send(result);
   }
 
   private async getProviderInstallUrl(

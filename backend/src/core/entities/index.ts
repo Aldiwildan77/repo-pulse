@@ -5,4 +5,5 @@ export type { RepoConfig, RepoEventToggle } from "./repo-config.js";
 export type { WebhookEvent } from "./webhook-event.js";
 export type { ConnectedRepo } from "./connected-repo.js";
 export type { UserTotp } from "./user-totp.js";
+export type { NotifierLog } from "./notifier-log.js";
 export type { SourceProvider } from "../webhook/webhook-provider.js";

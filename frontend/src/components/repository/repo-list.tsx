@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { MoreHorizontal, Pencil, Trash2, Bell } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Bell, ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { RepoStatusBadge } from "./repo-status-badge";
 import { NotificationSettingsModal } from "./notification-settings-modal";
+import { NotifierLogsModal } from "./notifier-logs-modal";
 import type { RepoConfig } from "@/hooks/use-repositories";
 
 interface RepoListProps {
@@ -34,6 +35,7 @@ export function RepoList({
 }: RepoListProps) {
   const navigate = useNavigate();
   const [notifModal, setNotifModal] = useState<{ id: number; name: string } | null>(null);
+  const [logsModal, setLogsModal] = useState<{ id: number; name: string } | null>(null);
 
   if (repositories.length === 0) {
     return (
@@ -101,6 +103,14 @@ export function RepoList({
                       Notification Settings
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      onClick={() =>
+                        setLogsModal({ id: repo.id, name: repo.providerRepo })
+                      }
+                    >
+                      <ScrollText className="mr-2 h-4 w-4" />
+                      View Logs
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onClick={() => navigate(`/repositories/${repo.id}/edit`)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
@@ -127,6 +137,15 @@ export function RepoList({
         open={!!notifModal}
         onOpenChange={(open) => {
           if (!open) setNotifModal(null);
+        }}
+      />
+
+      <NotifierLogsModal
+        repoConfigId={logsModal?.id ?? null}
+        repoName={logsModal?.name ?? ""}
+        open={!!logsModal}
+        onOpenChange={(open) => {
+          if (!open) setLogsModal(null);
         }}
       />
     </>

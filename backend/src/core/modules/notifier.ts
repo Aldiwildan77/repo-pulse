@@ -4,6 +4,7 @@ import type { RepoConfigRepository } from "../repositories/repo-config.repositor
 import type { UserBindingRepository } from "../repositories/user-binding.repository.js";
 import type { WebhookEventRepository } from "../repositories/webhook-event.repository.js";
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
+import type { NotifierLogRepository } from "../repositories/notifier-log.repository.js";
 import type { Platform, RepoConfig } from "../entities/index.js";
 import type { Pusher } from "./pusher/pusher.interface.js";
 import type { AppLogger } from "../../infrastructure/logger/logger.js";
@@ -63,6 +64,15 @@ export interface IssueClosedEvent {
   url: string;
 }
 
+export interface PrReviewEvent {
+  prId: number;
+  repo: string;
+  prTitle: string;
+  prUrl: string;
+  reviewer: string;
+  state: "approved" | "changes_requested";
+}
+
 export class NotifierModule {
   constructor(
     private readonly config: Config,
@@ -71,12 +81,34 @@ export class NotifierModule {
     private readonly userBindingRepo: UserBindingRepository,
     private readonly webhookEventRepo: WebhookEventRepository,
     private readonly connectedRepoRepo: ConnectedRepoRepository,
+    private readonly notifierLogRepo: NotifierLogRepository,
     private readonly pushers: Map<Platform, Pusher>,
     private readonly logger: AppLogger,
   ) {}
 
   private async isEventEnabled(cfg: RepoConfig, eventType: string): Promise<boolean> {
     return this.repoConfigRepo.isEventEnabled(cfg.id, eventType);
+  }
+
+  private async logEvent(
+    cfg: RepoConfig,
+    eventType: string,
+    status: "sent" | "failed" | "skipped",
+    summary: string,
+    errorMessage?: string,
+  ): Promise<void> {
+    try {
+      await this.notifierLogRepo.create({
+        repoConfigId: cfg.id,
+        eventType,
+        status,
+        platform: cfg.platform,
+        summary,
+        errorMessage: errorMessage ?? null,
+      });
+    } catch (err) {
+      this.logger.error("Failed to write notifier log", { error: String(err) });
+    }
   }
 
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
@@ -91,7 +123,10 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!(await this.isEventEnabled(cfg, "pr_opened"))) continue;
+      if (!(await this.isEventEnabled(cfg, "pr_opened"))) {
+        await this.logEvent(cfg, "pr_opened", "skipped", `PR #${event.prId} opened in ${event.repo} (disabled)`);
+        continue;
+      }
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -118,6 +153,8 @@ export class NotifierModule {
           platformChannelId: cfg.channelId,
         });
 
+        await this.logEvent(cfg, "pr_opened", "sent", `PR #${event.prId} "${event.title}" by ${event.author}`);
+
         this.logger.info("PR notification sent", {
           repo: event.repo,
           prId: event.prId,
@@ -125,6 +162,8 @@ export class NotifierModule {
           channelId: cfg.channelId,
         });
       } catch (err) {
+        await this.logEvent(cfg, "pr_opened", "failed", `PR #${event.prId} "${event.title}"`, String(err));
+
         this.logger.error("Failed to send PR notification", {
           error: String(err),
           repo: event.repo,
@@ -148,7 +187,10 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!(await this.isEventEnabled(cfg, "pr_label"))) continue;
+      if (!(await this.isEventEnabled(cfg, "pr_label"))) {
+        await this.logEvent(cfg, "pr_label", "skipped", `PR #${event.prId} label ${event.action} (disabled)`);
+        continue;
+      }
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -169,6 +211,8 @@ export class NotifierModule {
           author: event.author,
         });
 
+        await this.logEvent(cfg, "pr_label", "sent", `PR #${event.prId} ${event.action} "${event.label.name}"`);
+
         this.logger.info("Label notification sent", {
           repo: event.repo,
           prId: event.prId,
@@ -178,6 +222,8 @@ export class NotifierModule {
           channelId: cfg.channelId,
         });
       } catch (err) {
+        await this.logEvent(cfg, "pr_label", "failed", `PR #${event.prId} label ${event.action}`, String(err));
+
         this.logger.error("Failed to send label notification", {
           error: String(err),
           repo: event.repo,
@@ -213,7 +259,14 @@ export class NotifierModule {
     }
 
     for (const msg of messages) {
-      if (!enabledPlatforms.has(msg.platform)) continue;
+      const matchingCfg = configs.find((c) => c.platform === msg.platform);
+
+      if (!enabledPlatforms.has(msg.platform)) {
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, "pr_merged", "skipped", `PR #${event.prId} ${status} (disabled)`);
+        }
+        continue;
+      }
 
       try {
         const pusher = this.pushers.get(msg.platform);
@@ -221,7 +274,15 @@ export class NotifierModule {
 
         await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
         await this.prMessageRepo.updateStatus(msg.id, status);
+
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, "pr_merged", "sent", `PR #${event.prId} ${status} — ${emoji} reaction added`);
+        }
       } catch (err) {
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, "pr_merged", "failed", `PR #${event.prId} ${status}`, String(err));
+        }
+
         this.logger.error("Failed to add PR reaction", {
           error: String(err),
           repo: event.repo,
@@ -241,6 +302,8 @@ export class NotifierModule {
     for (const c of configs) {
       if (await this.isEventEnabled(c, "comment")) {
         enabledPlatforms.add(c.platform);
+      } else {
+        await this.logEvent(c, "comment", "skipped", `Comment mention by ${event.commenter} (disabled)`);
       }
     }
 
@@ -257,18 +320,34 @@ export class NotifierModule {
       commentBody: event.body,
     };
 
+    const mentionsSummary = `@${event.mentionedUsernames.join(", @")} mentioned by ${event.commenter}`;
+
     for (const binding of bindings) {
       if (binding.discordUserId && enabledPlatforms.has("discord")) {
         const pusher = this.pushers.get("discord");
         if (pusher) {
-          await pusher.sendMentionNotification(binding.discordUserId, payload);
+          try {
+            await pusher.sendMentionNotification(binding.discordUserId, payload);
+            const cfgForDiscord = configs.find((c) => c.platform === "discord");
+            if (cfgForDiscord) await this.logEvent(cfgForDiscord, "comment", "sent", mentionsSummary);
+          } catch (err) {
+            const cfgForDiscord = configs.find((c) => c.platform === "discord");
+            if (cfgForDiscord) await this.logEvent(cfgForDiscord, "comment", "failed", mentionsSummary, String(err));
+          }
         }
       }
 
       if (binding.slackUserId && enabledPlatforms.has("slack")) {
         const pusher = this.pushers.get("slack");
         if (pusher) {
-          await pusher.sendMentionNotification(binding.slackUserId, payload);
+          try {
+            await pusher.sendMentionNotification(binding.slackUserId, payload);
+            const cfgForSlack = configs.find((c) => c.platform === "slack");
+            if (cfgForSlack) await this.logEvent(cfgForSlack, "comment", "sent", mentionsSummary);
+          } catch (err) {
+            const cfgForSlack = configs.find((c) => c.platform === "slack");
+            if (cfgForSlack) await this.logEvent(cfgForSlack, "comment", "failed", mentionsSummary, String(err));
+          }
         }
       }
     }
@@ -286,7 +365,10 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!(await this.isEventEnabled(cfg, "issue_opened"))) continue;
+      if (!(await this.isEventEnabled(cfg, "issue_opened"))) {
+        await this.logEvent(cfg, "issue_opened", "skipped", `Issue #${event.issueId} opened (disabled)`);
+        continue;
+      }
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -306,6 +388,8 @@ export class NotifierModule {
           action: "opened",
         });
 
+        await this.logEvent(cfg, "issue_opened", "sent", `Issue #${event.issueId} "${event.title}" by ${event.author}`);
+
         this.logger.info("Issue opened notification sent", {
           repo: event.repo,
           issueId: event.issueId,
@@ -313,6 +397,8 @@ export class NotifierModule {
           channelId: cfg.channelId,
         });
       } catch (err) {
+        await this.logEvent(cfg, "issue_opened", "failed", `Issue #${event.issueId} "${event.title}"`, String(err));
+
         this.logger.error("Failed to send issue opened notification", {
           error: String(err),
           repo: event.repo,
@@ -336,7 +422,10 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!(await this.isEventEnabled(cfg, "issue_closed"))) continue;
+      if (!(await this.isEventEnabled(cfg, "issue_closed"))) {
+        await this.logEvent(cfg, "issue_closed", "skipped", `Issue #${event.issueId} closed (disabled)`);
+        continue;
+      }
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -356,6 +445,8 @@ export class NotifierModule {
           action: "closed",
         });
 
+        await this.logEvent(cfg, "issue_closed", "sent", `Issue #${event.issueId} "${event.title}" closed`);
+
         this.logger.info("Issue closed notification sent", {
           repo: event.repo,
           issueId: event.issueId,
@@ -363,10 +454,72 @@ export class NotifierModule {
           channelId: cfg.channelId,
         });
       } catch (err) {
+        await this.logEvent(cfg, "issue_closed", "failed", `Issue #${event.issueId} "${event.title}"`, String(err));
+
         this.logger.error("Failed to send issue closed notification", {
           error: String(err),
           repo: event.repo,
           issueId: event.issueId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      }
+    }
+  }
+
+  async handlePrReview(event: PrReviewEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+
+    if (configs.length === 0) {
+      this.logger.warn("No active repo configs found for review notification", {
+        repo: event.repo,
+        prId: event.prId,
+      });
+      return;
+    }
+
+    const eventType = event.state === "approved" ? "pr_review_approved" : "pr_review_changes_requested";
+
+    for (const cfg of configs) {
+      if (!(await this.isEventEnabled(cfg, eventType))) {
+        await this.logEvent(cfg, eventType, "skipped", `PR #${event.prId} review ${event.state} (disabled)`);
+        continue;
+      }
+
+      try {
+        const pusher = this.pushers.get(cfg.platform);
+        if (!pusher) {
+          this.logger.warn("No pusher registered for platform", {
+            platform: cfg.platform,
+            repo: event.repo,
+          });
+          continue;
+        }
+
+        await pusher.sendReviewNotification(cfg.channelId, {
+          repo: event.repo,
+          prTitle: event.prTitle,
+          prUrl: event.prUrl,
+          reviewer: event.reviewer,
+          state: event.state,
+        });
+
+        await this.logEvent(cfg, eventType, "sent", `PR #${event.prId} "${event.prTitle}" ${event.state} by ${event.reviewer}`);
+
+        this.logger.info("Review notification sent", {
+          repo: event.repo,
+          prId: event.prId,
+          state: event.state,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      } catch (err) {
+        await this.logEvent(cfg, eventType, "failed", `PR #${event.prId} review ${event.state}`, String(err));
+
+        this.logger.error("Failed to send review notification", {
+          error: String(err),
+          repo: event.repo,
+          prId: event.prId,
           platform: cfg.platform,
           channelId: cfg.channelId,
         });

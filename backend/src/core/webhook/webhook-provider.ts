@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import type { PrOpenedEvent, PrClosedEvent, CommentEvent, PrLabelChangedEvent, IssueOpenedEvent, IssueClosedEvent } from "../modules/notifier.js";
+import type { PrOpenedEvent, PrClosedEvent, CommentEvent, PrLabelChangedEvent, IssueOpenedEvent, IssueClosedEvent, PrReviewEvent } from "../modules/notifier.js";
 
 export type SourceProvider = "github" | "gitlab" | "bitbucket";
 
@@ -27,6 +27,7 @@ export type WebhookEvent =
   | { kind: "pr_opened"; data: PrOpenedEvent }
   | { kind: "pr_closed"; data: PrClosedEvent }
   | { kind: "pr_label_changed"; data: PrLabelChangedEvent }
+  | { kind: "pr_review"; data: PrReviewEvent }
   | { kind: "comment"; data: CommentEvent }
   | { kind: "issue_opened"; data: IssueOpenedEvent }
   | { kind: "issue_closed"; data: IssueClosedEvent }

@@ -1,5 +1,5 @@
 import { ChannelType, Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, IssueNotificationPayload, Guild, Channel } from "./pusher.interface.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, IssueNotificationPayload, ReviewNotificationPayload, Guild, Channel } from "./pusher.interface.js";
 
 export class DiscordPusher implements Pusher {
   private readonly client: Client;
@@ -103,6 +103,34 @@ export class DiscordPusher implements Pusher {
           `**Title:** ${payload.title}`,
           `**Author:** @${payload.author}`,
           `**Link:** ${payload.url}`,
+        ].join("\n"),
+      )
+      .setColor(color);
+
+    await channel.send({ embeds: [embed] });
+  }
+
+  async sendReviewNotification(channelId: string, payload: ReviewNotificationPayload): Promise<void> {
+    await this.ready;
+
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+      throw new Error(`Channel ${channelId} not found or not a text channel`);
+    }
+
+    const isApproved = payload.state === "approved";
+    const emoji = isApproved ? "\u2705" : "\uD83D\uDD04";
+    const title = isApproved ? "PR Approved" : "Changes Requested";
+    const color = isApproved ? 0x2f8b3a : 0xe3b341;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji} ${title}`)
+      .setDescription(
+        [
+          `**Repo:** ${payload.repo}`,
+          `**PR:** ${payload.prTitle}`,
+          `**Reviewer:** @${payload.reviewer}`,
+          `**Link:** ${payload.prUrl}`,
         ].join("\n"),
       )
       .setColor(color);

@@ -9,6 +9,7 @@ export interface Database {
   repo_event_toggles: RepoEventToggleTable;
   webhook_events: WebhookEventTable;
   connected_repos: ConnectedRepoTable;
+  notifier_logs: NotifierLogTable;
 }
 
 export interface PrMessageTable {
@@ -104,6 +105,20 @@ export interface ConnectedRepoTable {
 
 export type ConnectedRepoRow = Selectable<ConnectedRepoTable>;
 export type NewConnectedRepoRow = Insertable<ConnectedRepoTable>;
+
+export interface NotifierLogTable {
+  id: Generated<number>;
+  repo_config_id: number;
+  event_type: string;
+  status: Generated<string>;
+  platform: string;
+  summary: Generated<string>;
+  error_message: string | null;
+  created_at: Generated<Date>;
+}
+
+export type NotifierLogRow = Selectable<NotifierLogTable>;
+export type NewNotifierLogRow = Insertable<NotifierLogTable>;
 
 export interface UserTotpTable {
   id: Generated<number>;

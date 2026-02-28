@@ -31,6 +31,14 @@ export interface IssueNotificationPayload {
   action: "opened" | "closed";
 }
 
+export interface ReviewNotificationPayload {
+  repo: string;
+  prTitle: string;
+  prUrl: string;
+  reviewer: string;
+  state: "approved" | "changes_requested";
+}
+
 export interface Guild {
   id: string;
   name: string;
@@ -61,6 +69,11 @@ export interface Pusher {
   sendIssueNotification(
     channelId: string,
     payload: IssueNotificationPayload,
+  ): Promise<void>;
+
+  sendReviewNotification(
+    channelId: string,
+    payload: ReviewNotificationPayload,
   ): Promise<void>;
 
   addReaction(
