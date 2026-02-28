@@ -78,12 +78,17 @@ export function useRepositories(
 
 export function useRepositoryMutations() {
   const create = useCallback(async (input: RepoConfigInput) => {
-    const repo = await apiClient<RepoConfig>("/api/repos/config", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
-    toast.success("Repository added successfully");
-    return repo;
+    try {
+      const repo = await apiClient<RepoConfig>("/api/repos/config", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      toast.success("Repository added successfully");
+      return repo;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add repository");
+      throw err;
+    }
   }, []);
 
   const update = useCallback(
@@ -91,26 +96,41 @@ export function useRepositoryMutations() {
       channelId?: string;
       isActive?: boolean;
     }) => {
-      await apiClient(`/api/repos/config/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(input),
-      });
-      toast.success("Repository updated successfully");
+      try {
+        await apiClient(`/api/repos/config/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        });
+        toast.success("Repository updated successfully");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to update repository");
+        throw err;
+      }
     },
     [],
   );
 
   const remove = useCallback(async (id: number) => {
-    await apiClient(`/api/repos/config/${id}`, { method: "DELETE" });
-    toast.success("Repository removed successfully");
+    try {
+      await apiClient(`/api/repos/config/${id}`, { method: "DELETE" });
+      toast.success("Repository removed successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove repository");
+      throw err;
+    }
   }, []);
 
   const toggleActive = useCallback(async (id: number, isActive: boolean) => {
-    await apiClient(`/api/repos/config/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ isActive }),
-    });
-    toast.success(isActive ? "Repository activated" : "Repository deactivated");
+    try {
+      await apiClient(`/api/repos/config/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      });
+      toast.success(isActive ? "Repository activated" : "Repository deactivated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update repository");
+      throw err;
+    }
   }, []);
 
   const getEventToggles = useCallback(async (id: number) => {
@@ -118,10 +138,15 @@ export function useRepositoryMutations() {
   }, []);
 
   const upsertEventToggle = useCallback(async (id: number, eventType: string, isEnabled: boolean) => {
-    await apiClient(`/api/repos/config/${id}/toggles`, {
-      method: "PUT",
-      body: JSON.stringify({ eventType, isEnabled }),
-    });
+    try {
+      await apiClient(`/api/repos/config/${id}/toggles`, {
+        method: "PUT",
+        body: JSON.stringify({ eventType, isEnabled }),
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update event toggle");
+      throw err;
+    }
   }, []);
 
   const getNotifierLogs = useCallback(

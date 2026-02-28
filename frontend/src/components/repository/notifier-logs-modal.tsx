@@ -61,7 +61,7 @@ export function NotifierLogsModal({
         setLogs(result.logs);
         setTotal(result.total);
       })
-      .catch(() => toast.error("Failed to load logs"))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load logs"))
       .finally(() => setIsLoading(false));
   }, [open, repoConfigId, offset, getNotifierLogs]);
 

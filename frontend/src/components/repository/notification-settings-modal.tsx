@@ -46,7 +46,7 @@ export function NotificationSettingsModal({
     setIsLoading(true);
     getEventToggles(repoConfigId)
       .then(setToggles)
-      .catch(() => toast.error("Failed to load notification settings"))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load notification settings"))
       .finally(() => setIsLoading(false));
   }, [open, repoConfigId, getEventToggles]);
 
@@ -72,14 +72,14 @@ export function NotificationSettingsModal({
 
     try {
       await upsertEventToggle(repoConfigId, eventType, isEnabled);
-    } catch {
+    } catch (err) {
       // Revert on failure
       setToggles((prev) =>
         prev.map((t) =>
           t.eventType === eventType ? { ...t, isEnabled: !isEnabled } : t,
         ),
       );
-      toast.error("Failed to update setting");
+      toast.error(err instanceof Error ? err.message : "Failed to update setting");
     }
   };
 

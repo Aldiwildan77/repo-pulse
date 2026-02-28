@@ -58,18 +58,23 @@ export class AuthHandler {
     // Check if user is already logged in (binding mode)
     const existingUserId = this.getLoggedInUserId(request);
 
-    const result = await this.auth.handleGithubCallback(code, existingUserId);
+    try {
+      const result = await this.auth.handleGithubCallback(code, existingUserId);
 
-    if (result.totpRequired && result.totpPendingToken && !existingUserId) {
-      this.setTotpPendingCookie(reply, result.totpPendingToken);
-      reply.redirect(`${this.config.frontendUrl}/verify-totp`);
-      return;
+      if (result.totpRequired && result.totpPendingToken && !existingUserId) {
+        this.setTotpPendingCookie(reply, result.totpPendingToken);
+        reply.redirect(`${this.config.frontendUrl}/verify-totp`);
+        return;
+      }
+
+      this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
+
+      // Binding redirects to profile; login redirects to home
+      reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent(message)}`);
     }
-
-    this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
-
-    // Binding redirects to profile; login redirects to home
-    reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
   }
 
   private async googleRedirect(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -91,17 +96,22 @@ export class AuthHandler {
     // Check if user is already logged in (binding mode)
     const existingUserId = this.getLoggedInUserId(request);
 
-    const result = await this.auth.handleGoogleCallback(code, existingUserId);
+    try {
+      const result = await this.auth.handleGoogleCallback(code, existingUserId);
 
-    if (result.totpRequired && result.totpPendingToken && !existingUserId) {
-      this.setTotpPendingCookie(reply, result.totpPendingToken);
-      reply.redirect(`${this.config.frontendUrl}/verify-totp`);
-      return;
+      if (result.totpRequired && result.totpPendingToken && !existingUserId) {
+        this.setTotpPendingCookie(reply, result.totpPendingToken);
+        reply.redirect(`${this.config.frontendUrl}/verify-totp`);
+        return;
+      }
+
+      this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
+
+      reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent(message)}`);
     }
-
-    this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
-
-    reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
   }
 
   private async discordRedirect(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -118,15 +128,20 @@ export class AuthHandler {
     const token = request.cookies?.accessToken;
 
     if (!token) {
-      reply.code(401).send({ error: "Must be logged in to bind Discord" });
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent("Must be logged in to bind Discord")}`);
       return;
     }
 
-    const payload = this.auth.verifyAccessToken(token);
-    const userId = parseInt(payload.sub, 10);
-    await this.auth.handleDiscordCallback(code, userId);
+    try {
+      const payload = this.auth.verifyAccessToken(token);
+      const userId = parseInt(payload.sub, 10);
+      await this.auth.handleDiscordCallback(code, userId);
 
-    reply.redirect(`${this.config.frontendUrl}/profile`);
+      reply.redirect(`${this.config.frontendUrl}/profile`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to bind Discord";
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent(message)}`);
+    }
   }
 
   private async slackRedirect(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -143,15 +158,20 @@ export class AuthHandler {
     const token = request.cookies?.accessToken;
 
     if (!token) {
-      reply.code(401).send({ error: "Must be logged in to bind Slack" });
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent("Must be logged in to bind Slack")}`);
       return;
     }
 
-    const payload = this.auth.verifyAccessToken(token);
-    const userId = parseInt(payload.sub, 10);
-    await this.auth.handleSlackCallback(code, userId);
+    try {
+      const payload = this.auth.verifyAccessToken(token);
+      const userId = parseInt(payload.sub, 10);
+      await this.auth.handleSlackCallback(code, userId);
 
-    reply.redirect(`${this.config.frontendUrl}/profile`);
+      reply.redirect(`${this.config.frontendUrl}/profile`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to bind Slack";
+      reply.redirect(`${this.config.frontendUrl}/auth/error?message=${encodeURIComponent(message)}`);
+    }
   }
 
   private async me(request: FastifyRequest, reply: FastifyReply): Promise<void> {

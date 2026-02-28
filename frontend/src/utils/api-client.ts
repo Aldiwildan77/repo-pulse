@@ -66,7 +66,16 @@ export async function apiClient<T>(
 
   if (!response.ok) {
     const body = await response.text();
-    throw new ApiError(response.status, body || response.statusText);
+    let message = body || response.statusText;
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.message) {
+        message = parsed.message;
+      }
+    } catch {
+      // body is not JSON, use as-is
+    }
+    throw new ApiError(response.status, message);
   }
 
   if (response.status === 204) {
