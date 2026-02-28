@@ -229,7 +229,7 @@ export class AuthModule {
     existingUserId?: number,
   ): Promise<AuthCallbackResult> {
     const existingIdentity = await this.authRepo.findIdentity(params.provider, params.providerUserId);
-    const hasTokens = !!(params.accessTokenEncrypted && params.refreshTokenEncrypted);
+    const hasTokens = !!params.accessTokenEncrypted;
 
     if (existingUserId) {
       // Binding mode
@@ -251,8 +251,8 @@ export class AuthModule {
         await this.authRepo.updateIdentityTokens(
           existingIdentity.id,
           params.accessTokenEncrypted!,
-          params.refreshTokenEncrypted!,
-          params.tokenExpiresAt!,
+          params.refreshTokenEncrypted ?? null,
+          params.tokenExpiresAt ?? null,
         );
       }
 
@@ -268,8 +268,8 @@ export class AuthModule {
         await this.authRepo.updateIdentityTokens(
           existingIdentity.id,
           params.accessTokenEncrypted!,
-          params.refreshTokenEncrypted!,
-          params.tokenExpiresAt!,
+          params.refreshTokenEncrypted ?? null,
+          params.tokenExpiresAt ?? null,
         );
       }
       user = (await this.authRepo.findUserById(existingIdentity.userId))!;

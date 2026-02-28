@@ -120,8 +120,8 @@ export class KyselyAuthRepository {
   async updateIdentityTokens(
     identityId: number,
     accessTokenEncrypted: string,
-    refreshTokenEncrypted: string,
-    tokenExpiresAt: Date,
+    refreshTokenEncrypted: string | null,
+    tokenExpiresAt: Date | null,
   ): Promise<void> {
     await this.db
       .updateTable("user_identities")
