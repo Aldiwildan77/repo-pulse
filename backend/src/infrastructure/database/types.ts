@@ -3,6 +3,7 @@ import type { Generated, Insertable, Selectable, Updateable } from "kysely";
 export interface Database {
   pr_messages: PrMessageTable;
   user_bindings: UserBindingTable;
+  user_identities: UserIdentityTable;
   repo_configs: RepoConfigTable;
   webhook_events: WebhookEventTable;
   connected_repos: ConnectedRepoTable;
@@ -26,10 +27,12 @@ export type PrMessageUpdate = Updateable<PrMessageTable>;
 
 export interface UserBindingTable {
   id: Generated<number>;
-  provider_user_id: string;
-  provider_username: string;
+  provider_user_id: string | null;
+  provider_username: string | null;
   discord_user_id: string | null;
   slack_user_id: string | null;
+  google_user_id: string | null;
+  google_email: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -38,6 +41,19 @@ export type UserBindingRow = Selectable<UserBindingTable>;
 export type NewUserBindingRow = Insertable<UserBindingTable>;
 export type UserBindingUpdate = Updateable<UserBindingTable>;
 
+export interface UserIdentityTable {
+  id: Generated<number>;
+  user_id: number;
+  provider: string;
+  provider_user_id: string;
+  provider_email: string | null;
+  provider_username: string | null;
+  created_at: Generated<Date>;
+}
+
+export type UserIdentityRow = Selectable<UserIdentityTable>;
+export type NewUserIdentityRow = Insertable<UserIdentityTable>;
+
 export interface RepoConfigTable {
   id: Generated<number>;
   provider: "github" | "gitlab" | "bitbucket";
@@ -45,6 +61,12 @@ export interface RepoConfigTable {
   platform: "discord" | "slack";
   channel_id: string;
   is_active: Generated<boolean>;
+  notify_pr_opened: Generated<boolean>;
+  notify_pr_merged: Generated<boolean>;
+  notify_pr_label: Generated<boolean>;
+  notify_comment: Generated<boolean>;
+  notify_issue_opened: Generated<boolean>;
+  notify_issue_closed: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

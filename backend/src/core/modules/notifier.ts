@@ -29,8 +29,9 @@ export interface PrClosedEvent {
 
 export interface CommentEvent {
   repo: string;
-  prTitle: string;
-  prUrl: string;
+  title: string;
+  url: string;
+  isPullRequest: boolean;
   commenter: string;
   body: string;
   mentionedUsernames: string[];
@@ -44,6 +45,22 @@ export interface PrLabelChangedEvent {
   author: string;
   prTitle: string;
   prUrl: string;
+}
+
+export interface IssueOpenedEvent {
+  issueId: number;
+  repo: string;
+  title: string;
+  author: string;
+  url: string;
+}
+
+export interface IssueClosedEvent {
+  issueId: number;
+  repo: string;
+  title: string;
+  author: string;
+  url: string;
 }
 
 export class NotifierModule {
@@ -70,6 +87,8 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
+      if (!cfg.notifyPrOpened) continue;
+
       try {
         const pusher = this.pushers.get(cfg.platform);
         if (!pusher) {
@@ -125,6 +144,8 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
+      if (!cfg.notifyPrLabel) continue;
+
       try {
         const pusher = this.pushers.get(cfg.platform);
         if (!pusher) {
@@ -165,6 +186,11 @@ export class NotifierModule {
   }
 
   async handlePrClosed(event: PrClosedEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const enabledPlatforms = new Set(
+      configs.filter((c) => c.notifyPrMerged).map((c) => c.platform),
+    );
+
     const messages = await this.prMessageRepo.findByPrAndRepo(event.prId, event.repo);
     const emoji = event.merged ? "\u2705" : "\u274C";
     const status = event.merged ? "merged" : "closed";
@@ -179,6 +205,8 @@ export class NotifierModule {
     }
 
     for (const msg of messages) {
+      if (!enabledPlatforms.has(msg.platform)) continue;
+
       try {
         const pusher = this.pushers.get(msg.platform);
         if (!pusher) continue;
@@ -199,35 +227,139 @@ export class NotifierModule {
   async handleComment(event: CommentEvent): Promise<void> {
     if (event.mentionedUsernames.length === 0) return;
 
-    const bindings = await this.userBindingRepo.findByProviderUsernames(event.mentionedUsernames);
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const enabledPlatforms = new Set(
+      configs.filter((c) => c.notifyComment).map((c) => c.platform),
+    );
+
+    if (enabledPlatforms.size === 0) return;
+
+    const bindings = await this.userBindingRepo.findByProviderUsernames("github", event.mentionedUsernames);
+
+    const payload = {
+      repo: event.repo,
+      title: event.title,
+      url: event.url,
+      isPullRequest: event.isPullRequest,
+      commenter: event.commenter,
+      commentBody: event.body,
+    };
 
     for (const binding of bindings) {
-      // Send to Discord if bound
-      if (binding.discordUserId) {
+      // Send to Discord if bound and enabled
+      if (binding.discordUserId && enabledPlatforms.has("discord")) {
         const pusher = this.pushers.get("discord");
         if (pusher) {
-          await pusher.sendMentionNotification(binding.discordUserId, {
-            repo: event.repo,
-            prTitle: event.prTitle,
-            prUrl: event.prUrl,
-            commenter: event.commenter,
-            commentBody: event.body,
-          });
+          await pusher.sendMentionNotification(binding.discordUserId, payload);
         }
       }
 
-      // Send to Slack if bound
-      if (binding.slackUserId) {
+      // Send to Slack if bound and enabled
+      if (binding.slackUserId && enabledPlatforms.has("slack")) {
         const pusher = this.pushers.get("slack");
         if (pusher) {
-          await pusher.sendMentionNotification(binding.slackUserId, {
-            repo: event.repo,
-            prTitle: event.prTitle,
-            prUrl: event.prUrl,
-            commenter: event.commenter,
-            commentBody: event.body,
-          });
+          await pusher.sendMentionNotification(binding.slackUserId, payload);
         }
+      }
+    }
+  }
+
+  async handleIssueOpened(event: IssueOpenedEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+
+    if (configs.length === 0) {
+      this.logger.warn("No active repo configs found for issue notification", {
+        repo: event.repo,
+        issueId: event.issueId,
+      });
+      return;
+    }
+
+    for (const cfg of configs) {
+      if (!cfg.notifyIssueOpened) continue;
+
+      try {
+        const pusher = this.pushers.get(cfg.platform);
+        if (!pusher) {
+          this.logger.warn("No pusher registered for platform", {
+            platform: cfg.platform,
+            repo: event.repo,
+          });
+          continue;
+        }
+
+        await pusher.sendIssueNotification(cfg.channelId, {
+          repo: event.repo,
+          title: event.title,
+          author: event.author,
+          url: event.url,
+          action: "opened",
+        });
+
+        this.logger.info("Issue opened notification sent", {
+          repo: event.repo,
+          issueId: event.issueId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      } catch (err) {
+        this.logger.error("Failed to send issue opened notification", {
+          error: String(err),
+          repo: event.repo,
+          issueId: event.issueId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      }
+    }
+  }
+
+  async handleIssueClosed(event: IssueClosedEvent): Promise<void> {
+    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+
+    if (configs.length === 0) {
+      this.logger.warn("No active repo configs found for issue notification", {
+        repo: event.repo,
+        issueId: event.issueId,
+      });
+      return;
+    }
+
+    for (const cfg of configs) {
+      if (!cfg.notifyIssueClosed) continue;
+
+      try {
+        const pusher = this.pushers.get(cfg.platform);
+        if (!pusher) {
+          this.logger.warn("No pusher registered for platform", {
+            platform: cfg.platform,
+            repo: event.repo,
+          });
+          continue;
+        }
+
+        await pusher.sendIssueNotification(cfg.channelId, {
+          repo: event.repo,
+          title: event.title,
+          author: event.author,
+          url: event.url,
+          action: "closed",
+        });
+
+        this.logger.info("Issue closed notification sent", {
+          repo: event.repo,
+          issueId: event.issueId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
+      } catch (err) {
+        this.logger.error("Failed to send issue closed notification", {
+          error: String(err),
+          repo: event.repo,
+          issueId: event.issueId,
+          platform: cfg.platform,
+          channelId: cfg.channelId,
+        });
       }
     }
   }

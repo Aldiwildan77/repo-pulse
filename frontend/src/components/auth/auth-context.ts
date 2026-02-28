@@ -1,10 +1,22 @@
 import { createContext } from "react";
 
-export interface User {
+export interface UserIdentity {
+  provider: string;
   providerUserId: string;
-  providerUsername: string;
+  providerEmail: string | null;
+  providerUsername: string | null;
+}
+
+export interface User {
+  id: number;
+  providerUserId: string | null;
+  providerUsername: string | null;
   discordBound: boolean;
   slackBound: boolean;
+  githubBound: boolean;
+  googleBound: boolean;
+  googleEmail: string | null;
+  identities: UserIdentity[];
 }
 
 export interface AuthContextValue {

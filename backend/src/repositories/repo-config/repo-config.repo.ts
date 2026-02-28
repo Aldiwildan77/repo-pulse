@@ -75,10 +75,25 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     return rows.map(toRepoConfig);
   }
 
-  async update(id: number, data: { channelId?: string; isActive?: boolean }): Promise<void> {
+  async update(id: number, data: {
+    channelId?: string;
+    isActive?: boolean;
+    notifyPrOpened?: boolean;
+    notifyPrMerged?: boolean;
+    notifyPrLabel?: boolean;
+    notifyComment?: boolean;
+    notifyIssueOpened?: boolean;
+    notifyIssueClosed?: boolean;
+  }): Promise<void> {
     const updates: Record<string, unknown> = { updated_at: new Date() };
     if (data.channelId !== undefined) updates.channel_id = data.channelId;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
+    if (data.notifyPrOpened !== undefined) updates.notify_pr_opened = data.notifyPrOpened;
+    if (data.notifyPrMerged !== undefined) updates.notify_pr_merged = data.notifyPrMerged;
+    if (data.notifyPrLabel !== undefined) updates.notify_pr_label = data.notifyPrLabel;
+    if (data.notifyComment !== undefined) updates.notify_comment = data.notifyComment;
+    if (data.notifyIssueOpened !== undefined) updates.notify_issue_opened = data.notifyIssueOpened;
+    if (data.notifyIssueClosed !== undefined) updates.notify_issue_closed = data.notifyIssueClosed;
 
     await this.db
       .updateTable("repo_configs")

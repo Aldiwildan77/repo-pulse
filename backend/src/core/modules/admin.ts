@@ -34,7 +34,16 @@ export class AdminModule {
     return this.repoConfigRepo.findByRepo(providerRepo);
   }
 
-  async updateRepoConfig(id: number, data: { channelId?: string; isActive?: boolean }): Promise<void> {
+  async updateRepoConfig(id: number, data: {
+    channelId?: string;
+    isActive?: boolean;
+    notifyPrOpened?: boolean;
+    notifyPrMerged?: boolean;
+    notifyPrLabel?: boolean;
+    notifyComment?: boolean;
+    notifyIssueOpened?: boolean;
+    notifyIssueClosed?: boolean;
+  }): Promise<void> {
     return this.repoConfigRepo.update(id, data);
   }
 

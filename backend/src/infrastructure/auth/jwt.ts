@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 export interface JwtPayload {
   sub: string;
-  username: string;
+  username?: string;
   type: "access" | "refresh";
 }
 

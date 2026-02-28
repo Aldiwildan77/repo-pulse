@@ -8,6 +8,12 @@ export interface RepoConfig {
   platform: Platform;
   channelId: string;
   isActive: boolean;
+  notifyPrOpened: boolean;
+  notifyPrMerged: boolean;
+  notifyPrLabel: boolean;
+  notifyComment: boolean;
+  notifyIssueOpened: boolean;
+  notifyIssueClosed: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

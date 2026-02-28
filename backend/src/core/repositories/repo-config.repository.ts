@@ -16,7 +16,16 @@ export interface RepoConfigRepository {
 
   findActiveByRepo(providerRepo: string): Promise<RepoConfig[]>;
 
-  update(id: number, data: { channelId?: string; isActive?: boolean }): Promise<void>;
+  update(id: number, data: {
+    channelId?: string;
+    isActive?: boolean;
+    notifyPrOpened?: boolean;
+    notifyPrMerged?: boolean;
+    notifyPrLabel?: boolean;
+    notifyComment?: boolean;
+    notifyIssueOpened?: boolean;
+    notifyIssueClosed?: boolean;
+  }): Promise<void>;
 
   delete(id: number): Promise<void>;
 }

@@ -1,7 +1,9 @@
 import { Navigate } from "react-router";
 import { Zap, Bell, Shield, GitMerge } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 import { GitHubLoginButton } from "@/components/auth/github-login-button";
+import { GoogleLoginButton } from "@/components/auth/google-login-button";
 import {
   Card,
   CardContent,
@@ -18,6 +20,7 @@ const highlights = [
 
 export function LoginPage() {
   const { user, isLoading } = useAuth();
+  const { providers } = useAuthProviders();
 
   if (!isLoading && user) {
     return <Navigate to="/dashboard" replace />;
@@ -59,7 +62,10 @@ export function LoginPage() {
           </div>
         </div>
 
-        <GitHubLoginButton />
+        <div className="space-y-3">
+          <GitHubLoginButton />
+          {providers.includes("google") && <GoogleLoginButton />}
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
           By signing in, you agree to allow Repo Pulse to access your public

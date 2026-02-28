@@ -7,6 +7,7 @@ import { createRedisClient } from "./redis/connection.js";
 import { IdempotencyStore } from "./redis/idempotency.js";
 import { JwtService } from "./auth/jwt.js";
 import { GitHubOAuthService } from "./auth/github-oauth.js";
+import { GoogleOAuthService } from "./auth/google-oauth.js";
 import { DiscordOAuthService } from "./auth/discord-oauth.js";
 import { SlackOAuthService } from "./auth/slack-oauth.js";
 import { RateLimiter } from "./rate-limiter/rate-limiter.js";
@@ -19,6 +20,7 @@ export class InfrastructureFactory {
   readonly logger: AppLogger;
   readonly idempotency: IdempotencyStore;
   readonly githubOAuth: GitHubOAuthService;
+  readonly googleOAuth: GoogleOAuthService | null;
   readonly discordOAuth: DiscordOAuthService;
   readonly slackOAuth: SlackOAuthService;
   readonly rateLimiter: RateLimiter;
@@ -34,6 +36,14 @@ export class InfrastructureFactory {
       config.githubClientSecret,
       config.githubCallbackUrl,
     );
+    this.googleOAuth =
+      config.googleClientId && config.googleClientSecret && config.googleCallbackUrl
+        ? new GoogleOAuthService(
+            config.googleClientId,
+            config.googleClientSecret,
+            config.googleCallbackUrl,
+          )
+        : null;
     this.discordOAuth = new DiscordOAuthService(
       config.discordClientId,
       config.discordClientSecret,

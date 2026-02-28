@@ -31,7 +31,7 @@ export class HandlerFactory {
       providers,
     );
     this.auth = new AuthHandler(modules.auth, config, authMiddleware);
-    this.admin = new AdminHandler(modules.admin, authMiddleware);
+    this.admin = new AdminHandler(modules.admin, modules.auth, authMiddleware);
     this.health = new HealthHandler();
   }
 

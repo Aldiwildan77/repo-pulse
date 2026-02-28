@@ -88,11 +88,10 @@ export class GitLabWebhookProvider implements WebhookProvider {
     const attrs = payload.object_attributes as Record<string, unknown>;
     const noteableType = attrs.noteable_type as string;
 
-    if (noteableType !== "MergeRequest") {
+    if (noteableType !== "MergeRequest" && noteableType !== "Issue") {
       return { kind: "ignored" };
     }
 
-    const mr = payload.merge_request as Record<string, unknown>;
     const project = payload.project as Record<string, unknown>;
     const user = payload.user as Record<string, unknown>;
     const repo = project.path_with_namespace as string;
@@ -109,12 +108,18 @@ export class GitLabWebhookProvider implements WebhookProvider {
       return { kind: "ignored" };
     }
 
+    const isPullRequest = noteableType === "MergeRequest";
+    const noteable = isPullRequest
+      ? payload.merge_request as Record<string, unknown>
+      : payload.issue as Record<string, unknown>;
+
     return {
       kind: "comment",
       data: {
         repo,
-        prTitle: mr.title as string,
-        prUrl: (mr.url as string) ?? attrs.url as string,
+        title: noteable.title as string,
+        url: (noteable.url as string) ?? attrs.url as string,
+        isPullRequest,
         commenter: user.username as string,
         body,
         mentionedUsernames: mentions,

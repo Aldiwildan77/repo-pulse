@@ -11,6 +11,12 @@ export interface RepoConfig {
   platform: Platform;
   channelId: string;
   isActive: boolean;
+  notifyPrOpened: boolean;
+  notifyPrMerged: boolean;
+  notifyPrLabel: boolean;
+  notifyComment: boolean;
+  notifyIssueOpened: boolean;
+  notifyIssueClosed: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,7 +46,16 @@ export function useRepositoryMutations() {
   }, []);
 
   const update = useCallback(
-    async (id: number, input: { channelId?: string; isActive?: boolean }) => {
+    async (id: number, input: {
+      channelId?: string;
+      isActive?: boolean;
+      notifyPrOpened?: boolean;
+      notifyPrMerged?: boolean;
+      notifyPrLabel?: boolean;
+      notifyComment?: boolean;
+      notifyIssueOpened?: boolean;
+      notifyIssueClosed?: boolean;
+    }) => {
       await apiClient(`/api/repos/config/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),

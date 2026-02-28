@@ -103,6 +103,12 @@ export class WebhookHandler {
       case "pr_label_changed":
         await this.notifier.handlePrLabelChanged(event.data);
         break;
+      case "issue_opened":
+        await this.notifier.handleIssueOpened(event.data);
+        break;
+      case "issue_closed":
+        await this.notifier.handleIssueClosed(event.data);
+        break;
       case "comment":
         await this.notifier.handleComment(event.data);
         break;

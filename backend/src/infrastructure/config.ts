@@ -21,6 +21,10 @@ const configSchema = z.object({
 
   githubAppSlug: z.string().min(1).optional(),
 
+  googleClientId: z.string().min(1).optional(),
+  googleClientSecret: z.string().min(1).optional(),
+  googleCallbackUrl: z.string().url().optional(),
+
   gitlabWebhookSecret: z.string().optional(),
   bitbucketWebhookSecret: z.string().optional(),
 
@@ -57,6 +61,10 @@ export function loadConfig(): Config {
     slackCallbackUrl: process.env.SLACK_CALLBACK_URL,
 
     githubAppSlug: process.env.GITHUB_APP_SLUG,
+
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL,
 
     gitlabWebhookSecret: process.env.GITLAB_WEBHOOK_SECRET,
     bitbucketWebhookSecret: process.env.BITBUCKET_WEBHOOK_SECRET,

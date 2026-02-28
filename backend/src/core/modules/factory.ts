@@ -34,7 +34,9 @@ export class ModuleFactory {
     this.auth = new AuthModule(
       config,
       repos.userBinding,
+      repos.auth,
       infra.githubOAuth,
+      infra.googleOAuth,
       infra.discordOAuth,
       infra.slackOAuth,
       infra.jwt,

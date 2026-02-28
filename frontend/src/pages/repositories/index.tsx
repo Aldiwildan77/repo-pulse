@@ -18,10 +18,15 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export function RepositoriesPage() {
   const { repositories, isLoading, refetch } = useRepositories();
-  const { toggleActive, remove } = useRepositoryMutations();
+  const { toggleActive, update, remove } = useRepositoryMutations();
 
   const handleToggle = async (id: number, isActive: boolean) => {
     await toggleActive(id, isActive);
+    refetch();
+  };
+
+  const handleToggleEvent = async (id: number, field: string, value: boolean) => {
+    await update(id, { [field]: value });
     refetch();
   };
 
@@ -62,6 +67,7 @@ export function RepositoriesPage() {
             <RepoList
               repositories={repositories}
               onToggleActive={handleToggle}
+              onToggleEvent={handleToggleEvent}
               onDelete={handleDelete}
             />
           )}

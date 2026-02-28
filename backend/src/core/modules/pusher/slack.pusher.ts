@@ -1,5 +1,5 @@
 import { WebClient } from "@slack/web-api";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, Channel } from "./pusher.interface.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, IssueNotificationPayload, Channel } from "./pusher.interface.js";
 
 export class SlackPusher implements Pusher {
   private readonly client: WebClient;
@@ -36,6 +36,7 @@ export class SlackPusher implements Pusher {
   }
 
   async sendMentionNotification(userId: string, payload: MentionNotificationPayload): Promise<void> {
+    const kind = payload.isPullRequest ? "PR" : "Issue";
     await this.client.chat.postMessage({
       channel: userId, // DM by user ID
       blocks: [
@@ -44,17 +45,17 @@ export class SlackPusher implements Pusher {
           text: {
             type: "mrkdwn",
             text: [
-              `:speech_balloon: *You were mentioned in a PR comment*`,
+              `:speech_balloon: *You were mentioned in a ${kind} comment*`,
               `*Repo:* ${payload.repo}`,
-              `*PR:* ${payload.prTitle}`,
+              `*${kind}:* ${payload.title}`,
               `*By:* @${payload.commenter}`,
               `*Comment:* ${payload.commentBody.slice(0, 200)}`,
-              `*Link:* <${payload.prUrl}|View PR>`,
+              `*Link:* <${payload.url}|View ${kind}>`,
             ].join("\n"),
           },
         },
       ],
-      text: `${payload.commenter} mentioned you in ${payload.prTitle}`,
+      text: `${payload.commenter} mentioned you in ${payload.title}`,
     });
   }
 
@@ -81,6 +82,31 @@ export class SlackPusher implements Pusher {
         },
       ],
       text: `${actionText}: ${payload.label.name} on ${payload.prTitle}`,
+    });
+  }
+
+  async sendIssueNotification(channelId: string, payload: IssueNotificationPayload): Promise<void> {
+    const isOpened = payload.action === "opened";
+    const emoji = isOpened ? ":clipboard:" : ":white_check_mark:";
+
+    await this.client.chat.postMessage({
+      channel: channelId,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: [
+              `${emoji} *Issue ${isOpened ? "Opened" : "Closed"}*`,
+              `*Repo:* ${payload.repo}`,
+              `*Title:* ${payload.title}`,
+              `*Author:* @${payload.author}`,
+              `*Link:* <${payload.url}|View Issue>`,
+            ].join("\n"),
+          },
+        },
+      ],
+      text: `Issue ${payload.action}: ${payload.title} by ${payload.author}`,
     });
   }
 

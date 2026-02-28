@@ -15,7 +15,6 @@ export class AuthMiddleware {
     try {
       const payload = this.auth.verifyAccessToken(token);
       request.userId = payload.sub;
-      request.username = payload.username;
     } catch {
       reply.code(401).send({ error: "Invalid token" });
     }

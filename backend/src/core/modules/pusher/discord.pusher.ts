@@ -1,5 +1,5 @@
 import { ChannelType, Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
-import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, Guild, Channel } from "./pusher.interface.js";
+import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, IssueNotificationPayload, Guild, Channel } from "./pusher.interface.js";
 
 export class DiscordPusher implements Pusher {
   private readonly client: Client;
@@ -38,15 +38,16 @@ export class DiscordPusher implements Pusher {
     await this.ready;
 
     const user = await this.client.users.fetch(userId);
+    const kind = payload.isPullRequest ? "PR" : "Issue";
     const embed = new EmbedBuilder()
-      .setTitle("You were mentioned in a PR comment")
+      .setTitle(`You were mentioned in a ${kind} comment`)
       .setDescription(
         [
           `**Repo:** ${payload.repo}`,
-          `**PR:** ${payload.prTitle}`,
+          `**${kind}:** ${payload.title}`,
           `**By:** @${payload.commenter}`,
           `**Comment:** ${payload.commentBody.slice(0, 200)}`,
-          `**Link:** ${payload.prUrl}`,
+          `**Link:** ${payload.url}`,
         ].join("\n"),
       )
       .setColor(0x5865f2);
@@ -75,6 +76,33 @@ export class DiscordPusher implements Pusher {
           `**Label:** ${payload.label.name}`,
           `**By:** @${payload.author}`,
           `**Link:** ${payload.prUrl}`,
+        ].join("\n"),
+      )
+      .setColor(color);
+
+    await channel.send({ embeds: [embed] });
+  }
+
+  async sendIssueNotification(channelId: string, payload: IssueNotificationPayload): Promise<void> {
+    await this.ready;
+
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+      throw new Error(`Channel ${channelId} not found or not a text channel`);
+    }
+
+    const isOpened = payload.action === "opened";
+    const emoji = isOpened ? "\uD83D\uDCCB" : "\u2705";
+    const color = isOpened ? 0x1f6feb : 0x8957e5;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji} Issue ${isOpened ? "Opened" : "Closed"}`)
+      .setDescription(
+        [
+          `**Repo:** ${payload.repo}`,
+          `**Title:** ${payload.title}`,
+          `**Author:** @${payload.author}`,
+          `**Link:** ${payload.url}`,
         ].join("\n"),
       )
       .setColor(color);

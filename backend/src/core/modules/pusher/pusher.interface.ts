@@ -7,8 +7,9 @@ export interface PrNotificationPayload {
 
 export interface MentionNotificationPayload {
   repo: string;
-  prTitle: string;
-  prUrl: string;
+  title: string;
+  url: string;
+  isPullRequest: boolean;
   commenter: string;
   commentBody: string;
 }
@@ -20,6 +21,14 @@ export interface LabelNotificationPayload {
   action: "labeled" | "unlabeled";
   label: { name: string; color: string };
   author: string;
+}
+
+export interface IssueNotificationPayload {
+  repo: string;
+  title: string;
+  author: string;
+  url: string;
+  action: "opened" | "closed";
 }
 
 export interface Guild {
@@ -47,6 +56,11 @@ export interface Pusher {
   sendLabelNotification(
     channelId: string,
     payload: LabelNotificationPayload,
+  ): Promise<void>;
+
+  sendIssueNotification(
+    channelId: string,
+    payload: IssueNotificationPayload,
   ): Promise<void>;
 
   addReaction(

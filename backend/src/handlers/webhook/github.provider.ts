@@ -42,6 +42,10 @@ export class GitHubWebhookProvider implements WebhookProvider {
       return this.parseIssueComment(payload);
     }
 
+    if (eventType === "issues") {
+      return this.parseIssue(payload);
+    }
+
     if (eventType === "installation") {
       return this.parseInstallation(payload);
     }
@@ -164,6 +168,40 @@ export class GitHubWebhookProvider implements WebhookProvider {
     };
   }
 
+  private parseIssue(payload: Record<string, unknown>): WebhookEvent {
+    const action = payload.action as string;
+    const issue = payload.issue as Record<string, unknown>;
+    const repo = (payload.repository as Record<string, unknown>).full_name as string;
+
+    if (action === "opened") {
+      return {
+        kind: "issue_opened",
+        data: {
+          issueId: issue.number as number,
+          repo,
+          title: issue.title as string,
+          author: (issue.user as Record<string, unknown>).login as string,
+          url: issue.html_url as string,
+        },
+      };
+    }
+
+    if (action === "closed") {
+      return {
+        kind: "issue_closed",
+        data: {
+          issueId: issue.number as number,
+          repo,
+          title: issue.title as string,
+          author: (issue.user as Record<string, unknown>).login as string,
+          url: issue.html_url as string,
+        },
+      };
+    }
+
+    return { kind: "ignored" };
+  }
+
   private parseIssueComment(payload: Record<string, unknown>): WebhookEvent {
     const comment = payload.comment as Record<string, unknown>;
     const issue = payload.issue as Record<string, unknown>;
@@ -185,8 +223,9 @@ export class GitHubWebhookProvider implements WebhookProvider {
       kind: "comment",
       data: {
         repo,
-        prTitle: issue.title as string,
-        prUrl: issue.html_url as string,
+        title: issue.title as string,
+        url: issue.html_url as string,
+        isPullRequest: "pull_request" in issue,
         commenter: (comment.user as Record<string, unknown>).login as string,
         body,
         mentionedUsernames: mentions,

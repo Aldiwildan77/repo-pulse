@@ -1,7 +1,7 @@
 export interface UserBinding {
   id: number;
-  providerUserId: string;
-  providerUsername: string;
+  providerUserId: string | null;
+  providerUsername: string | null;
   discordUserId: string | null;
   slackUserId: string | null;
   createdAt: Date;

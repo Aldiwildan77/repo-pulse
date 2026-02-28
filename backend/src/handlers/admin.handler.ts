@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { AdminModule } from "../core/modules/admin.js";
+import type { AuthModule } from "../core/modules/auth.js";
 import type { Platform } from "../core/entities/index.js";
 import type { SourceProvider } from "../core/webhook/webhook-provider.js";
 import type { AuthMiddleware } from "./middleware/auth.middleware.js";
@@ -7,6 +8,7 @@ import type { AuthMiddleware } from "./middleware/auth.middleware.js";
 export class AdminHandler {
   constructor(
     private readonly admin: AdminModule,
+    private readonly auth: AuthModule,
     private readonly authMiddleware: AuthMiddleware,
   ) {}
 
@@ -116,7 +118,16 @@ export class AdminHandler {
   private async updateConfig(
     request: FastifyRequest<{
       Params: { id: string };
-      Body: { channelId?: string; isActive?: boolean };
+      Body: {
+        channelId?: string;
+        isActive?: boolean;
+        notifyPrOpened?: boolean;
+        notifyPrMerged?: boolean;
+        notifyPrLabel?: boolean;
+        notifyComment?: boolean;
+        notifyIssueOpened?: boolean;
+        notifyIssueClosed?: boolean;
+      };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
@@ -153,8 +164,18 @@ export class AdminHandler {
     request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> {
-    const userId = request.userId!;
-    const repos = await this.admin.getConnectedRepos(userId);
+    const userId = parseInt(request.userId!, 10);
+
+    // Look up user's GitHub identity to query connected_repos
+    const identities = await this.auth.getIdentities(userId);
+    const githubIdentity = identities.find((i) => i.provider === "github");
+
+    if (!githubIdentity) {
+      reply.send([]);
+      return;
+    }
+
+    const repos = await this.admin.getConnectedRepos(githubIdentity.providerUserId);
     reply.send(repos);
   }
 

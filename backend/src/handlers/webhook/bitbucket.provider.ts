@@ -107,8 +107,9 @@ export class BitbucketWebhookProvider implements WebhookProvider {
       kind: "comment",
       data: {
         repo,
-        prTitle: pr.title as string,
-        prUrl: htmlLink.href as string,
+        title: pr.title as string,
+        url: htmlLink.href as string,
+        isPullRequest: true,
         commenter: actor.nickname as string,
         body,
         mentionedUsernames: mentions,
