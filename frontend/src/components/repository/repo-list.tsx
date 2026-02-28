@@ -80,7 +80,7 @@ export function RepoList({
 
   return (
     <>
-      {/* Add Channel button */}
+      {/* Add Repository button */}
       <div className="flex justify-end mb-2">
         <Button
           variant="outline"
@@ -88,7 +88,7 @@ export function RepoList({
           onClick={() => navigate("/repositories/new")}
         >
           <PlusCircle className="mr-1 h-4 w-4" />
-          Add Channel
+          Add Repository
         </Button>
       </div>
 

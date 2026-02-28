@@ -25,9 +25,9 @@ import type { RepoConfigInput } from '@/hooks/use-repositories';
 import type { Platform, SourceProvider } from '@/utils/constants';
 import { API_URL } from '@/utils/constants';
 import { Switch } from '@/components/ui/switch';
-import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, SettingsIcon, XIcon } from 'lucide-react';
+import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { defaultValues, type MultiPlatformState, type PlatformConfig } from './repo-config-defaults';
+import { defaultChannelMapping, defaultValues, type ChannelMapping, type MultiPlatformState } from './repo-config-defaults';
 
 interface RepoConfigFormProps {
   initialValues?: RepoConfigInput;
@@ -420,18 +420,28 @@ export function NotificationStepContent({
   );
 }
 
-// --- Multi-platform components ---
+// --- Multi-platform components with channel-tag mappings ---
 
-interface PlatformSectionProps {
+interface ChannelMappingRowProps {
   platform: Platform;
-  config: PlatformConfig;
-  onChange: (config: PlatformConfig) => void;
+  mapping: ChannelMapping;
+  index: number;
+  canRemove: boolean;
+  onChange: (mapping: ChannelMapping) => void;
+  onRemove: () => void;
 }
 
-function PlatformSection({ platform, config, onChange }: PlatformSectionProps) {
+function ChannelMappingRow({
+  platform,
+  mapping,
+  index,
+  canRemove,
+  onChange,
+  onRemove,
+}: ChannelMappingRowProps) {
   const { guilds, isLoading: guildsLoading } = useDiscordGuilds();
   const { channels: discordChannels, isLoading: discordChannelsLoading } =
-    useDiscordChannels(platform === 'discord' ? config.guildId : null);
+    useDiscordChannels(platform === 'discord' ? mapping.guildId : null);
   const { channels: slackChannels, isLoading: slackChannelsLoading } =
     useSlackChannels();
 
@@ -440,21 +450,38 @@ function PlatformSection({ platform, config, onChange }: PlatformSectionProps) {
     platform === 'discord' ? discordChannelsLoading : slackChannelsLoading;
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-3 rounded-md border border-dashed p-3'>
+      <div className='flex items-center justify-between'>
+        <span className='text-xs font-medium text-muted-foreground'>
+          Channel {index + 1}
+        </span>
+        {canRemove && (
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            className='h-6 w-6'
+            onClick={onRemove}
+          >
+            <Trash2Icon className='h-3.5 w-3.5' />
+          </Button>
+        )}
+      </div>
+
       {platform === 'discord' && (
         <FormField
           label='Server'
-          htmlFor={`guild-${platform}`}
+          htmlFor={`guild-${platform}-${index}`}
           hint='Select the Discord server where the bot is installed'
         >
           <Select
-            value={config.guildId ?? ''}
+            value={mapping.guildId ?? ''}
             onValueChange={(guildId) =>
-              onChange({ ...config, guildId, channelId: '' })
+              onChange({ ...mapping, guildId, channelId: '' })
             }
             disabled={guildsLoading}
           >
-            <SelectTrigger id={`guild-${platform}`}>
+            <SelectTrigger id={`guild-${platform}-${index}`}>
               <SelectValue
                 placeholder={
                   guildsLoading ? 'Loading servers...' : 'Select a server'
@@ -474,22 +501,22 @@ function PlatformSection({ platform, config, onChange }: PlatformSectionProps) {
 
       <FormField
         label='Channel'
-        htmlFor={`channel-${platform}`}
+        htmlFor={`channel-${platform}-${index}`}
         hint={`The ${platform === 'discord' ? 'Discord' : 'Slack'} channel where notifications will be sent`}
       >
         <Select
-          value={config.channelId}
-          onValueChange={(v) => onChange({ ...config, channelId: v })}
+          value={mapping.channelId}
+          onValueChange={(v) => onChange({ ...mapping, channelId: v })}
           disabled={
-            channelsLoading || (platform === 'discord' && !config.guildId)
+            channelsLoading || (platform === 'discord' && !mapping.guildId)
           }
         >
-          <SelectTrigger id={`channel-${platform}`}>
+          <SelectTrigger id={`channel-${platform}-${index}`}>
             <SelectValue
               placeholder={
                 channelsLoading
                   ? 'Loading channels...'
-                  : platform === 'discord' && !config.guildId
+                  : platform === 'discord' && !mapping.guildId
                     ? 'Select a server first'
                     : 'Select a channel'
               }
@@ -506,8 +533,8 @@ function PlatformSection({ platform, config, onChange }: PlatformSectionProps) {
       </FormField>
 
       <TagsInput
-        tags={config.tags}
-        onChange={(tags) => onChange({ ...config, tags })}
+        tags={mapping.tags}
+        onChange={(tags) => onChange({ ...mapping, tags })}
       />
     </div>
   );
@@ -527,6 +554,48 @@ export function MultiPlatformNotificationStep({
     { key: 'slack' as const, label: 'Slack' },
   ];
 
+  const updateMapping = (
+    platformKey: 'discord' | 'slack',
+    index: number,
+    mapping: ChannelMapping,
+  ) => {
+    setPlatformConfigs((prev) => {
+      const updated = [...prev[platformKey].mappings];
+      updated[index] = mapping;
+      return { ...prev, [platformKey]: { ...prev[platformKey], mappings: updated } };
+    });
+  };
+
+  const removeMapping = (platformKey: 'discord' | 'slack', index: number) => {
+    setPlatformConfigs((prev) => {
+      const updated = prev[platformKey].mappings.filter((_, i) => i !== index);
+      return { ...prev, [platformKey]: { ...prev[platformKey], mappings: updated } };
+    });
+  };
+
+  const addMapping = (platformKey: 'discord' | 'slack') => {
+    setPlatformConfigs((prev) => ({
+      ...prev,
+      [platformKey]: {
+        ...prev[platformKey],
+        mappings: [...prev[platformKey].mappings, { ...defaultChannelMapping }],
+      },
+    }));
+  };
+
+  const togglePlatform = (platformKey: 'discord' | 'slack', checked: boolean) => {
+    setPlatformConfigs((prev) => ({
+      ...prev,
+      [platformKey]: {
+        ...prev[platformKey],
+        enabled: checked,
+        mappings: checked && prev[platformKey].mappings.length === 0
+          ? [{ ...defaultChannelMapping }]
+          : prev[platformKey].mappings,
+      },
+    }));
+  };
+
   return (
     <div className='space-y-4'>
       {platforms.map(({ key, label }) => (
@@ -535,22 +604,33 @@ export function MultiPlatformNotificationStep({
             <span className='text-sm font-medium'>{label}</span>
             <Switch
               checked={platformConfigs[key].enabled}
-              onCheckedChange={(checked: boolean) =>
-                setPlatformConfigs((prev) => ({
-                  ...prev,
-                  [key]: { ...prev[key], enabled: checked },
-                }))
-              }
+              onCheckedChange={(checked: boolean) => togglePlatform(key, checked)}
             />
           </div>
           {platformConfigs[key].enabled && (
-            <PlatformSection
-              platform={key}
-              config={platformConfigs[key]}
-              onChange={(config) =>
-                setPlatformConfigs((prev) => ({ ...prev, [key]: config }))
-              }
-            />
+            <div className='space-y-3'>
+              {platformConfigs[key].mappings.map((mapping, idx) => (
+                <ChannelMappingRow
+                  key={idx}
+                  platform={key}
+                  mapping={mapping}
+                  index={idx}
+                  canRemove={platformConfigs[key].mappings.length > 1}
+                  onChange={(m) => updateMapping(key, idx, m)}
+                  onRemove={() => removeMapping(key, idx)}
+                />
+              ))}
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='w-full'
+                onClick={() => addMapping(key)}
+              >
+                <PlusIcon className='mr-1 h-4 w-4' />
+                Add Channel Mapping
+              </Button>
+            </div>
           )}
         </div>
       ))}

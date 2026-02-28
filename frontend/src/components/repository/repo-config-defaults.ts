@@ -8,11 +8,16 @@ export const defaultValues: RepoConfigInput = {
   tags: [],
 };
 
+export interface ChannelMapping {
+  channelId: string;
+  guildId: string | null; // Discord-only
+  tags: string[];
+  existingConfigId?: number; // used in edit mode for diff-based save
+}
+
 export interface PlatformConfig {
   enabled: boolean;
-  channelId: string;
-  guildId: string | null;
-  tags: string[];
+  mappings: ChannelMapping[];
 }
 
 export interface MultiPlatformState {
@@ -20,14 +25,13 @@ export interface MultiPlatformState {
   slack: PlatformConfig;
 }
 
-export const defaultPlatformConfig: PlatformConfig = {
-  enabled: false,
+export const defaultChannelMapping: ChannelMapping = {
   channelId: "",
   guildId: null,
   tags: [],
 };
 
 export const defaultMultiPlatformState: MultiPlatformState = {
-  discord: { ...defaultPlatformConfig, enabled: true },
-  slack: { ...defaultPlatformConfig },
+  discord: { enabled: true, mappings: [{ ...defaultChannelMapping }] },
+  slack: { enabled: false, mappings: [] },
 };

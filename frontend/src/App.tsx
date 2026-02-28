@@ -13,6 +13,8 @@ import { VerifyTotpPage } from "@/pages/verify-totp";
 import { AuthErrorPage } from "@/pages/auth-error";
 import { NotFoundPage } from "@/pages/not-found";
 import { StatusPage } from "@/pages/status";
+import { PrivacyPolicyPage } from "@/pages/privacy-policy";
+import { TermsOfServicePage } from "@/pages/terms-of-service";
 
 export default function App() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
       </Route>
 
       <Route path="/status" element={<StatusPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsOfServicePage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </>

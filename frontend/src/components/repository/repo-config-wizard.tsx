@@ -91,10 +91,12 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
       return !!sourceValues.provider && !!sourceValues.providerRepo;
     }
     if (currentStep === 1) {
-      const hasEnabledPlatform =
-        (platformConfigs.discord.enabled && !!platformConfigs.discord.channelId) ||
-        (platformConfigs.slack.enabled && !!platformConfigs.slack.channelId);
-      return hasEnabledPlatform;
+      const hasValidMapping = (['discord', 'slack'] as const).some(
+        (p) =>
+          platformConfigs[p].enabled &&
+          platformConfigs[p].mappings.some((m) => !!m.channelId),
+      );
+      return hasValidMapping;
     }
     return true;
   };
@@ -114,22 +116,21 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const platforms = (['discord', 'slack'] as const).filter(
-        (p) => platformConfigs[p].enabled && platformConfigs[p].channelId,
-      );
-
       const createdRepos = [];
-      for (const platform of platforms) {
-        const cfg = platformConfigs[platform];
-        const input: RepoConfigInput = {
-          provider: sourceValues.provider,
-          providerRepo: sourceValues.providerRepo,
-          platform,
-          channelId: cfg.channelId,
-          tags: cfg.tags,
-        };
-        const repo = await create(input);
-        createdRepos.push(repo);
+      for (const platform of ['discord', 'slack'] as const) {
+        if (!platformConfigs[platform].enabled) continue;
+        for (const mapping of platformConfigs[platform].mappings) {
+          if (!mapping.channelId) continue;
+          const input: RepoConfigInput = {
+            provider: sourceValues.provider,
+            providerRepo: sourceValues.providerRepo,
+            platform,
+            channelId: mapping.channelId,
+            tags: mapping.tags,
+          };
+          const repo = await create(input);
+          createdRepos.push(repo);
+        }
       }
 
       const disabledEvents = Object.entries(eventToggles).filter(

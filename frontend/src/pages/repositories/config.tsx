@@ -11,7 +11,6 @@ import { MultiPlatformNotificationStep } from "@/components/repository/repo-conf
 import { RepoConfigWizard } from "@/components/repository/repo-config-wizard";
 import {
   defaultMultiPlatformState,
-  defaultPlatformConfig,
   type MultiPlatformState,
 } from "@/components/repository/repo-config-defaults";
 import {
@@ -61,14 +60,9 @@ export function RepositoryConfigPage() {
   const [platformConfigs, setPlatformConfigs] = useState<MultiPlatformState>(
     () => ({ ...defaultMultiPlatformState }),
   );
-  // Track existing config IDs for diff-based save
-  const [existingIds, setExistingIds] = useState<{
-    discord: number | null;
-    slack: number | null;
-  }>({ discord: null, slack: null });
   const [initialized, setInitialized] = useState(false);
 
-  // Build multi-platform state from loaded configs
+  // Build multi-platform state from loaded configs (group siblings by platform)
   useEffect(() => {
     if (!repository || allLoading) return;
 
@@ -78,63 +72,74 @@ export function RepositoryConfigPage() {
         c.providerRepo === repository.providerRepo,
     );
 
-    const ids: { discord: number | null; slack: number | null } = {
-      discord: null,
-      slack: null,
-    };
     const state: MultiPlatformState = {
-      discord: { ...defaultPlatformConfig },
-      slack: { ...defaultPlatformConfig },
+      discord: { enabled: false, mappings: [] },
+      slack: { enabled: false, mappings: [] },
     };
 
     for (const cfg of siblings) {
       const p = cfg.platform as Platform;
       if (p === "discord" || p === "slack") {
-        ids[p] = cfg.id;
-        state[p] = {
-          enabled: true,
+        state[p].enabled = true;
+        state[p].mappings.push({
           channelId: cfg.channelId,
-          guildId: null, // guild will be re-selected by user if needed
+          guildId: null,
           tags: cfg.tags ?? [],
-        };
+          existingConfigId: cfg.id,
+        });
       }
     }
 
-    setExistingIds(ids);
     setPlatformConfigs(state);
     setInitialized(true);
   }, [repository, allConfigs, allLoading]);
 
-  // Diff-based save
+  // Diff-based save: compare current mappings against existing configs
   const handleSave = async () => {
     if (!repository) return;
     setIsSubmitting(true);
     try {
-      const platforms = ["discord", "slack"] as const;
-      for (const p of platforms) {
-        const cfg = platformConfigs[p];
-        const existingId = existingIds[p];
+      for (const platform of ["discord", "slack"] as const) {
+        const cfg = platformConfigs[platform];
 
-        if (cfg.enabled && cfg.channelId) {
-          if (existingId) {
-            // Update existing
-            await update(existingId, {
-              channelId: cfg.channelId,
-              tags: cfg.tags,
-            });
-          } else {
-            // Create new
-            await create({
-              provider: repository.provider,
-              providerRepo: repository.providerRepo,
-              platform: p,
-              channelId: cfg.channelId,
-              tags: cfg.tags,
-            });
+        if (cfg.enabled) {
+          for (const mapping of cfg.mappings) {
+            if (!mapping.channelId) continue;
+            if (mapping.existingConfigId) {
+              // Update existing config
+              await update(mapping.existingConfigId, {
+                channelId: mapping.channelId,
+                tags: mapping.tags,
+              });
+            } else {
+              // Create new config
+              await create({
+                provider: repository.provider,
+                providerRepo: repository.providerRepo,
+                platform,
+                channelId: mapping.channelId,
+                tags: mapping.tags,
+              });
+            }
           }
-        } else if (!cfg.enabled && existingId) {
-          // Delete
-          await remove(existingId);
+        }
+
+        // Delete configs that were removed or belong to a disabled platform
+        const existingIdsInMappings = new Set(
+          cfg.mappings
+            .filter((m) => m.existingConfigId)
+            .map((m) => m.existingConfigId!),
+        );
+        const siblingsForPlatform = allConfigs.filter(
+          (c) =>
+            c.provider === repository.provider &&
+            c.providerRepo === repository.providerRepo &&
+            c.platform === platform,
+        );
+        for (const sibling of siblingsForPlatform) {
+          if (!cfg.enabled || !existingIdsInMappings.has(sibling.id)) {
+            await remove(sibling.id);
+          }
         }
       }
       navigate("/repositories");
