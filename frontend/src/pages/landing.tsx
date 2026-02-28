@@ -1,3 +1,5 @@
+import { Navigate } from "react-router";
+import { useAuth } from "@/hooks/use-auth";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { FeaturesSection } from "@/components/landing/features-section";
@@ -9,6 +11,12 @@ import { CtaSection } from "@/components/landing/cta-section";
 import { Footer } from "@/components/layout/footer";
 
 export function LandingPage() {
+  const { user, isLoading } = useAuth();
+
+  if (!isLoading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen">
       <LandingNavbar />

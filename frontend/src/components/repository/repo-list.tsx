@@ -8,7 +8,6 @@ import {
   ScrollText,
   ChevronLeftIcon,
   ChevronRightIcon,
-  PlusCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,18 +79,6 @@ export function RepoList({
 
   return (
     <>
-      {/* Add Repository button */}
-      <div className="flex justify-end mb-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/repositories/new")}
-        >
-          <PlusCircle className="mr-1 h-4 w-4" />
-          Add Repository
-        </Button>
-      </div>
-
       {/* Desktop table */}
       <div className="hidden md:block">
         <Table>
