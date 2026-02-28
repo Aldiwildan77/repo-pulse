@@ -12,7 +12,7 @@ export class GitHubOAuthService extends BaseOAuthService {
       authorizeUrl: "https://github.com/login/oauth/authorize",
       tokenUrl: "https://github.com/login/oauth/access_token",
       userInfoUrl: "https://api.github.com/user",
-      scope: "read:user",
+      scope: "read:user,repo",
     });
   }
 

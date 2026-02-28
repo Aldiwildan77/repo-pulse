@@ -285,9 +285,9 @@ export class AdminHandler {
     try {
       const repos = await this.admin.getProviderRepos(userId, provider);
       reply.send(repos);
-    } catch {
-      // User may not have bound this provider — return empty list
-      reply.send([]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch repositories";
+      reply.code(400).send({ error: message });
     }
   }
 

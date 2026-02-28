@@ -55,6 +55,7 @@ export function SourceStepContent({
   const {
     repos: connectedRepos,
     isLoading: reposLoading,
+    error: reposError,
     refetch: refetchRepos,
   } = useConnectedRepos(values.provider);
 
@@ -110,7 +111,24 @@ export function SourceStepContent({
         </FormField>
 
         <FormField label='Repository' htmlFor='providerRepo'>
-          {filteredRepos.length > 0 || reposLoading ? (
+          {reposError ? (
+            <div className='flex flex-col gap-2'>
+              <p className='text-sm text-destructive'>
+                {reposError}
+              </p>
+              <div className='flex gap-2'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={refetchRepos}
+                >
+                  <RefreshCwIcon className='mr-1 h-4 w-4' />
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : filteredRepos.length > 0 || reposLoading ? (
             <Combobox
               id='providerRepo'
               options={[
