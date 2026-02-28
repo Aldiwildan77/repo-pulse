@@ -471,58 +471,58 @@ export class NotifierModule {
   async handlePrReview(event: PrReviewEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
 
-    if (configs.length === 0) {
-      this.logger.warn("No active repo configs found for review notification", {
+    const eventType = event.state === "approved" ? "pr_review_approved" : "pr_review_changes_requested";
+
+    const enabledPlatforms = new Set<Platform>();
+    for (const c of configs) {
+      if (await this.isEventEnabled(c, eventType)) {
+        enabledPlatforms.add(c.platform);
+      }
+    }
+
+    const messages = await this.prMessageRepo.findByPrAndRepo(event.prId, event.repo);
+    const emoji = event.state === "approved" ? "\uD83D\uDC4D" : "\u274C";
+
+    if (messages.length === 0) {
+      this.logger.warn("No PR messages found for review reaction", {
         repo: event.repo,
         prId: event.prId,
+        state: event.state,
       });
       return;
     }
 
-    const eventType = event.state === "approved" ? "pr_review_approved" : "pr_review_changes_requested";
+    for (const msg of messages) {
+      const matchingCfg = configs.find((c) => c.platform === msg.platform);
 
-    for (const cfg of configs) {
-      if (!(await this.isEventEnabled(cfg, eventType))) {
-        await this.logEvent(cfg, eventType, "skipped", `PR #${event.prId} review ${event.state} (disabled)`);
+      if (!enabledPlatforms.has(msg.platform)) {
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, eventType, "skipped", `PR #${event.prId} review ${event.state} (disabled)`);
+        }
         continue;
       }
 
       try {
-        const pusher = this.pushers.get(cfg.platform);
-        if (!pusher) {
-          this.logger.warn("No pusher registered for platform", {
-            platform: cfg.platform,
-            repo: event.repo,
-          });
-          continue;
+        const pusher = this.pushers.get(msg.platform);
+        if (!pusher) continue;
+
+        await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
+        await pusher.removeButtons(msg.platformChannelId, msg.platformMessageId);
+
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, eventType, "sent", `PR #${event.prId} "${event.prTitle}" ${event.state} by ${event.reviewer} — ${emoji} reaction added`);
+        }
+      } catch (err) {
+        if (matchingCfg) {
+          await this.logEvent(matchingCfg, eventType, "failed", `PR #${event.prId} review ${event.state}`, String(err));
         }
 
-        await pusher.sendReviewNotification(cfg.channelId, {
-          repo: event.repo,
-          prTitle: event.prTitle,
-          prUrl: event.prUrl,
-          reviewer: event.reviewer,
-          state: event.state,
-        });
-
-        await this.logEvent(cfg, eventType, "sent", `PR #${event.prId} "${event.prTitle}" ${event.state} by ${event.reviewer}`);
-
-        this.logger.info("Review notification sent", {
-          repo: event.repo,
-          prId: event.prId,
-          state: event.state,
-          platform: cfg.platform,
-          channelId: cfg.channelId,
-        });
-      } catch (err) {
-        await this.logEvent(cfg, eventType, "failed", `PR #${event.prId} review ${event.state}`, String(err));
-
-        this.logger.error("Failed to send review notification", {
+        this.logger.error("Failed to add PR review reaction", {
           error: String(err),
           repo: event.repo,
           prId: event.prId,
-          platform: cfg.platform,
-          channelId: cfg.channelId,
+          state: event.state,
+          platform: msg.platform,
         });
       }
     }
