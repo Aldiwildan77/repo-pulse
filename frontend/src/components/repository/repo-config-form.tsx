@@ -24,9 +24,10 @@ import {
 import type { RepoConfigInput } from '@/hooks/use-repositories';
 import type { Platform, SourceProvider } from '@/utils/constants';
 import { API_URL } from '@/utils/constants';
+import { Switch } from '@/components/ui/switch';
 import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, SettingsIcon, XIcon } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
-import { defaultValues } from './repo-config-defaults';
+import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { defaultValues, type MultiPlatformState, type PlatformConfig } from './repo-config-defaults';
 
 interface RepoConfigFormProps {
   initialValues?: RepoConfigInput;
@@ -202,7 +203,7 @@ export function SourceStepContent({
 
 // --- Row-based tag input for label-to-channel mapping ---
 
-function TagsInput({
+export function TagsInput({
   tags,
   onChange,
 }: {
@@ -415,6 +416,149 @@ export function NotificationStepContent({
         tags={values.tags ?? []}
         onChange={(tags) => setValues((prev) => ({ ...prev, tags }))}
       />
+    </div>
+  );
+}
+
+// --- Multi-platform components ---
+
+interface PlatformSectionProps {
+  platform: Platform;
+  config: PlatformConfig;
+  onChange: (config: PlatformConfig) => void;
+}
+
+function PlatformSection({ platform, config, onChange }: PlatformSectionProps) {
+  const { guilds, isLoading: guildsLoading } = useDiscordGuilds();
+  const { channels: discordChannels, isLoading: discordChannelsLoading } =
+    useDiscordChannels(platform === 'discord' ? config.guildId : null);
+  const { channels: slackChannels, isLoading: slackChannelsLoading } =
+    useSlackChannels();
+
+  const channels = platform === 'discord' ? discordChannels : slackChannels;
+  const channelsLoading =
+    platform === 'discord' ? discordChannelsLoading : slackChannelsLoading;
+
+  return (
+    <div className='space-y-4'>
+      {platform === 'discord' && (
+        <FormField
+          label='Server'
+          htmlFor={`guild-${platform}`}
+          hint='Select the Discord server where the bot is installed'
+        >
+          <Select
+            value={config.guildId ?? ''}
+            onValueChange={(guildId) =>
+              onChange({ ...config, guildId, channelId: '' })
+            }
+            disabled={guildsLoading}
+          >
+            <SelectTrigger id={`guild-${platform}`}>
+              <SelectValue
+                placeholder={
+                  guildsLoading ? 'Loading servers...' : 'Select a server'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {guilds.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+      )}
+
+      <FormField
+        label='Channel'
+        htmlFor={`channel-${platform}`}
+        hint={`The ${platform === 'discord' ? 'Discord' : 'Slack'} channel where notifications will be sent`}
+      >
+        <Select
+          value={config.channelId}
+          onValueChange={(v) => onChange({ ...config, channelId: v })}
+          disabled={
+            channelsLoading || (platform === 'discord' && !config.guildId)
+          }
+        >
+          <SelectTrigger id={`channel-${platform}`}>
+            <SelectValue
+              placeholder={
+                channelsLoading
+                  ? 'Loading channels...'
+                  : platform === 'discord' && !config.guildId
+                    ? 'Select a server first'
+                    : 'Select a channel'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {channels.map((ch) => (
+              <SelectItem key={ch.id} value={ch.id}>
+                # {ch.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+
+      <TagsInput
+        tags={config.tags}
+        onChange={(tags) => onChange({ ...config, tags })}
+      />
+    </div>
+  );
+}
+
+interface MultiPlatformNotificationStepProps {
+  platformConfigs: MultiPlatformState;
+  setPlatformConfigs: Dispatch<SetStateAction<MultiPlatformState>>;
+}
+
+export function MultiPlatformNotificationStep({
+  platformConfigs,
+  setPlatformConfigs,
+}: MultiPlatformNotificationStepProps) {
+  const platforms = [
+    { key: 'discord' as const, label: 'Discord' },
+    { key: 'slack' as const, label: 'Slack' },
+  ];
+
+  return (
+    <div className='space-y-4'>
+      {platforms.map(({ key, label }) => (
+        <div key={key} className='rounded-lg border p-4 space-y-4'>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm font-medium'>{label}</span>
+            <Switch
+              checked={platformConfigs[key].enabled}
+              onCheckedChange={(checked: boolean) =>
+                setPlatformConfigs((prev) => ({
+                  ...prev,
+                  [key]: { ...prev[key], enabled: checked },
+                }))
+              }
+            />
+          </div>
+          {platformConfigs[key].enabled && (
+            <PlatformSection
+              platform={key}
+              config={platformConfigs[key]}
+              onChange={(config) =>
+                setPlatformConfigs((prev) => ({ ...prev, [key]: config }))
+              }
+            />
+          )}
+        </div>
+      ))}
+      {!platformConfigs.discord.enabled && !platformConfigs.slack.enabled && (
+        <p className='text-sm text-destructive'>
+          At least one platform must be enabled.
+        </p>
+      )}
     </div>
   );
 }

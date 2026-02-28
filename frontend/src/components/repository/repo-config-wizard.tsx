@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/card";
 import {
   SourceStepContent,
-  NotificationStepContent,
+  MultiPlatformNotificationStep,
 } from "./repo-config-form";
-import { defaultValues } from "./repo-config-defaults";
+import { defaultValues, defaultMultiPlatformState, type MultiPlatformState } from "./repo-config-defaults";
 import { useRepositoryMutations, type RepoConfigInput } from "@/hooks/use-repositories";
 import {
   GitPullRequest,
@@ -69,10 +69,18 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const { create, upsertEventToggle } = useRepositoryMutations();
   const initialStep = prefilled ? 1 : 0;
   const [currentStep, setCurrentStep] = useState(initialStep);
-  const [values, setValues] = useState<RepoConfigInput>(() => ({
+
+  // Source values (provider + repo) — kept in RepoConfigInput shape for SourceStepContent compat
+  const [sourceValues, setSourceValues] = useState<RepoConfigInput>(() => ({
     ...defaultValues,
     ...(prefilled ? { provider: prefilled.provider, providerRepo: prefilled.providerRepo } : {}),
   }));
+
+  // Multi-platform configs
+  const [platformConfigs, setPlatformConfigs] = useState<MultiPlatformState>(
+    () => ({ ...defaultMultiPlatformState }),
+  );
+
   const [eventToggles, setEventToggles] = useState<Record<string, boolean>>(
     () => Object.fromEntries(EVENT_TYPES.map((e) => [e.key, true])),
   );
@@ -80,10 +88,13 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
 
   const canGoNext = () => {
     if (currentStep === 0) {
-      return !!values.provider && !!values.providerRepo;
+      return !!sourceValues.provider && !!sourceValues.providerRepo;
     }
     if (currentStep === 1) {
-      return !!values.platform && !!values.channelId;
+      const hasEnabledPlatform =
+        (platformConfigs.discord.enabled && !!platformConfigs.discord.channelId) ||
+        (platformConfigs.slack.enabled && !!platformConfigs.slack.channelId);
+      return hasEnabledPlatform;
     }
     return true;
   };
@@ -103,15 +114,35 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const repo = await create(values);
+      const platforms = (['discord', 'slack'] as const).filter(
+        (p) => platformConfigs[p].enabled && platformConfigs[p].channelId,
+      );
+
+      const createdRepos = [];
+      for (const platform of platforms) {
+        const cfg = platformConfigs[platform];
+        const input: RepoConfigInput = {
+          provider: sourceValues.provider,
+          providerRepo: sourceValues.providerRepo,
+          platform,
+          channelId: cfg.channelId,
+          tags: cfg.tags,
+        };
+        const repo = await create(input);
+        createdRepos.push(repo);
+      }
+
       const disabledEvents = Object.entries(eventToggles).filter(
         ([, enabled]) => !enabled,
       );
       await Promise.all(
-        disabledEvents.map(([eventType]) =>
-          upsertEventToggle(repo.id, eventType, false),
+        createdRepos.flatMap((repo) =>
+          disabledEvents.map(([eventType]) =>
+            upsertEventToggle(repo.id, eventType, false),
+          ),
         ),
       );
+
       navigate("/repositories");
     } catch {
       // Error toast handled by mutation hooks
@@ -125,7 +156,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
       <CardHeader>
         <CardTitle>New Repository</CardTitle>
         <CardDescription>
-          Configure the repository and notification channel
+          Configure the repository and notification channels
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -139,11 +170,14 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
         </div>
 
         {currentStep === 0 && (
-          <SourceStepContent values={values} setValues={setValues} />
+          <SourceStepContent values={sourceValues} setValues={setSourceValues} />
         )}
 
         {currentStep === 1 && (
-          <NotificationStepContent values={values} setValues={setValues} />
+          <MultiPlatformNotificationStep
+            platformConfigs={platformConfigs}
+            setPlatformConfigs={setPlatformConfigs}
+          />
         )}
 
         {currentStep === 2 && (
