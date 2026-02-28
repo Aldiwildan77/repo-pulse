@@ -42,7 +42,7 @@ export function RepositoryConfigPage() {
       if (isEditing && repoId) {
         await update(Number(repoId), {
           channelId: values.channelId,
-          tag: values.tag ?? null,
+          tags: values.tags ?? [],
         });
       }
       navigate("/repositories");
@@ -107,7 +107,7 @@ export function RepositoryConfigPage() {
                       providerRepo: repository.providerRepo,
                       platform: repository.platform,
                       channelId: repository.channelId,
-                      tag: repository.tag,
+                      tags: repository.tags,
                     }
                   : undefined
               }

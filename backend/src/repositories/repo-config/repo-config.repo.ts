@@ -13,7 +13,6 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     providerRepo: string;
     platform: Platform;
     channelId: string;
-    tag?: string | null;
   }): Promise<RepoConfig> {
     const row = await this.db
       .insertInto("repo_configs")
@@ -23,7 +22,6 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
         provider_repo: data.providerRepo,
         platform: data.platform,
         channel_id: data.channelId,
-        tag: data.tag ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -99,12 +97,10 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
   async update(id: number, data: {
     channelId?: string;
     isActive?: boolean;
-    tag?: string | null;
   }): Promise<void> {
     const updates: Record<string, unknown> = { updated_at: new Date() };
     if (data.channelId !== undefined) updates.channel_id = data.channelId;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
-    if (data.tag !== undefined) updates.tag = data.tag;
 
     await this.db
       .updateTable("repo_configs")
@@ -169,5 +165,37 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
 
     // Default to true if no row exists (opt-out model)
     return row ? row.is_enabled : true;
+  }
+
+  async getTagsForConfigs(configIds: number[]): Promise<Map<number, string[]>> {
+    if (configIds.length === 0) return new Map();
+
+    const rows = await this.db
+      .selectFrom("repo_config_tags")
+      .select(["repo_config_id", "tag"])
+      .where("repo_config_id", "in", configIds)
+      .execute();
+
+    const map = new Map<number, string[]>();
+    for (const row of rows) {
+      const existing = map.get(row.repo_config_id) ?? [];
+      existing.push(row.tag);
+      map.set(row.repo_config_id, existing);
+    }
+    return map;
+  }
+
+  async setTagsForConfig(configId: number, tags: string[]): Promise<void> {
+    await this.db
+      .deleteFrom("repo_config_tags")
+      .where("repo_config_id", "=", configId)
+      .execute();
+
+    if (tags.length > 0) {
+      await this.db
+        .insertInto("repo_config_tags")
+        .values(tags.map((tag) => ({ repo_config_id: configId, tag })))
+        .execute();
+    }
   }
 }

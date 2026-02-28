@@ -92,12 +92,20 @@ export class NotifierModule {
 
     if (notifyTags.length === 0) {
       // No notify labels → only default (untagged) configs
-      return configs.filter((c) => c.tag === null);
+      return configs.filter((c) => c.tags.length === 0);
     }
 
     // Has notify labels → matching tagged configs + all default configs
     const tagSet = new Set(notifyTags);
-    return configs.filter((c) => c.tag === null || tagSet.has(c.tag));
+    return configs.filter((c) => c.tags.length === 0 || c.tags.some((t) => tagSet.has(t)));
+  }
+
+  private async populateTags(configs: RepoConfig[]): Promise<void> {
+    if (configs.length === 0) return;
+    const tagsMap = await this.repoConfigRepo.getTagsForConfigs(configs.map((c) => c.id));
+    for (const cfg of configs) {
+      cfg.tags = tagsMap.get(cfg.id) ?? [];
+    }
   }
 
   private async isEventEnabled(cfg: RepoConfig, eventType: string): Promise<boolean> {
@@ -127,6 +135,7 @@ export class NotifierModule {
 
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
     const allConfigs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    await this.populateTags(allConfigs);
     const configs = this.filterConfigsByLabels(allConfigs, event.labels);
 
     if (configs.length === 0) {

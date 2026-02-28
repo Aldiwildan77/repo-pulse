@@ -24,7 +24,7 @@ import {
 import type { RepoConfigInput } from '@/hooks/use-repositories';
 import type { Platform, SourceProvider } from '@/utils/constants';
 import { API_URL } from '@/utils/constants';
-import { ExternalLinkIcon, RefreshCwIcon, SettingsIcon } from 'lucide-react';
+import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { defaultValues } from './repo-config-defaults';
 
@@ -200,6 +200,86 @@ export function SourceStepContent({
   );
 }
 
+// --- Row-based tag input for label-to-channel mapping ---
+
+function TagsInput({
+  tags,
+  onChange,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  const addTag = () => {
+    const value = draft.trim().toLowerCase();
+    if (value && !tags.includes(value)) {
+      onChange([...tags, value]);
+    }
+    setDraft('');
+  };
+
+  const removeTag = (tag: string) => {
+    onChange(tags.filter((t) => t !== tag));
+  };
+
+  return (
+    <FormField
+      label='Label Tags'
+      htmlFor='tags'
+      hint='Optional. PRs with a notify:<tag> GitHub label will be routed to this channel. No tags = default (receives all notifications).'
+    >
+      <div className='space-y-2'>
+        {tags.length > 0 && (
+          <div className='space-y-1'>
+            {tags.map((tag) => (
+              <div
+                key={tag}
+                className='flex items-center justify-between rounded-md border px-3 py-1.5 text-sm'
+              >
+                <span className='font-mono'>notify:{tag}</span>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  className='h-6 w-6'
+                  onClick={() => removeTag(tag)}
+                >
+                  <XIcon className='h-3.5 w-3.5' />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className='flex gap-2'>
+          <Input
+            id='tags'
+            placeholder='e.g. alerts'
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+          />
+          <Button
+            type='button'
+            variant='outline'
+            size='icon'
+            className='shrink-0'
+            onClick={addTag}
+            disabled={!draft.trim()}
+          >
+            <PlusIcon className='h-4 w-4' />
+          </Button>
+        </div>
+      </div>
+    </FormField>
+  );
+}
+
 interface NotificationStepContentProps {
   values: RepoConfigInput;
   setValues: React.Dispatch<React.SetStateAction<RepoConfigInput>>;
@@ -331,23 +411,10 @@ export function NotificationStepContent({
         </Select>
       </FormField>
 
-      <FormField
-        label='Channel Tag'
-        htmlFor='tag'
-        hint='Optional. PRs with a notify:<tag> label will be routed here. Leave empty for default (receives all).'
-      >
-        <Input
-          id='tag'
-          placeholder='e.g. alerts, reviews'
-          value={values.tag ?? ''}
-          onChange={(e) =>
-            setValues((prev) => ({
-              ...prev,
-              tag: e.target.value || null,
-            }))
-          }
-        />
-      </FormField>
+      <TagsInput
+        tags={values.tags ?? []}
+        onChange={(tags) => setValues((prev) => ({ ...prev, tags }))}
+      />
     </div>
   );
 }

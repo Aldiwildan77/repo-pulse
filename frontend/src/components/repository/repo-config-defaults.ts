@@ -5,5 +5,5 @@ export const defaultValues: RepoConfigInput = {
   providerRepo: "",
   platform: "discord",
   channelId: "",
-  tag: null,
+  tags: [],
 };

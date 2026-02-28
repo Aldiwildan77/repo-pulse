@@ -37,7 +37,7 @@ export class HandlerFactory {
     this.auth = new AuthHandler(modules.auth, config, authMiddleware);
     this.admin = new AdminHandler(modules.admin, modules.auth, config, infra.gitlabApi, authMiddleware);
     this.totp = new TotpHandler(modules.totp, modules.auth, config, authMiddleware);
-    this.health = new HealthHandler();
+    this.health = new HealthHandler(infra.db, infra.redis);
     this.feedback = new FeedbackHandler(modules.feedback, authMiddleware);
   }
 

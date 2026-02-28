@@ -13,6 +13,7 @@ import { RepositoryConfigPage } from "@/pages/repositories/config";
 import { VerifyTotpPage } from "@/pages/verify-totp";
 import { AuthErrorPage } from "@/pages/auth-error";
 import { NotFoundPage } from "@/pages/not-found";
+import { StatusPage } from "@/pages/status";
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route path="/status" element={<StatusPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </>

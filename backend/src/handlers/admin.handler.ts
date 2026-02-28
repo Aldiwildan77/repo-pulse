@@ -118,14 +118,14 @@ export class AdminHandler {
 
   private async createConfig(
     request: FastifyRequest<{
-      Body: { provider: SourceProvider; providerRepo: string; platform: Platform; channelId: string; tag?: string | null };
+      Body: { provider: SourceProvider; providerRepo: string; platform: Platform; channelId: string; tags?: string[] };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const { provider, providerRepo, platform, channelId, tag } = request.body;
+    const { provider, providerRepo, platform, channelId, tags } = request.body;
     const userId = parseInt(request.userId!, 10);
 
-    const config = await this.admin.createRepoConfig({ userId, provider, providerRepo, platform, channelId, tag: tag ?? null });
+    const config = await this.admin.createRepoConfig({ userId, provider, providerRepo, platform, channelId, tags: tags ?? [] });
 
     if (provider === "gitlab" && this.config.gitlabWebhookSecret) {
       try {
@@ -178,7 +178,7 @@ export class AdminHandler {
       Body: {
         channelId?: string;
         isActive?: boolean;
-        tag?: string | null;
+        tags?: string[];
       };
     }>,
     reply: FastifyReply,

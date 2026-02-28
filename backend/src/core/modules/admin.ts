@@ -29,16 +29,30 @@ export class AdminModule {
     this.authModule = auth;
   }
 
+  private async populateTags(configs: RepoConfig[]): Promise<void> {
+    if (configs.length === 0) return;
+    const tagsMap = await this.repoConfigRepo.getTagsForConfigs(configs.map((c) => c.id));
+    for (const cfg of configs) {
+      cfg.tags = tagsMap.get(cfg.id) ?? [];
+    }
+  }
+
   async getRepoConfigById(id: number): Promise<RepoConfig | null> {
-    return this.repoConfigRepo.findById(id);
+    const config = await this.repoConfigRepo.findById(id);
+    if (config) await this.populateTags([config]);
+    return config;
   }
 
   async getAllRepoConfigsByUser(userId: number): Promise<RepoConfig[]> {
-    return this.repoConfigRepo.findAllByUser(userId);
+    const configs = await this.repoConfigRepo.findAllByUser(userId);
+    await this.populateTags(configs);
+    return configs;
   }
 
   async getAllRepoConfigsByUserPaginated(userId: number, limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
-    return this.repoConfigRepo.findAllByUserPaginated(userId, limit, offset);
+    const result = await this.repoConfigRepo.findAllByUserPaginated(userId, limit, offset);
+    await this.populateTags(result.configs);
+    return result;
   }
 
   async createRepoConfig(data: {
@@ -47,9 +61,14 @@ export class AdminModule {
     providerRepo: string;
     platform: Platform;
     channelId: string;
-    tag?: string | null;
+    tags?: string[];
   }): Promise<RepoConfig> {
-    return this.repoConfigRepo.create(data);
+    const config = await this.repoConfigRepo.create(data);
+    if (data.tags && data.tags.length > 0) {
+      await this.repoConfigRepo.setTagsForConfig(config.id, data.tags);
+      config.tags = data.tags;
+    }
+    return config;
   }
 
   async getRepoConfigs(providerRepo: string): Promise<RepoConfig[]> {
@@ -59,13 +78,17 @@ export class AdminModule {
   async updateRepoConfig(id: number, userId: number, data: {
     channelId?: string;
     isActive?: boolean;
-    tag?: string | null;
+    tags?: string[];
   }): Promise<void> {
     const config = await this.repoConfigRepo.findById(id);
     if (!config || config.userId !== userId) {
       throw new Error("Config not found");
     }
-    return this.repoConfigRepo.update(id, data);
+    const { tags, ...updateData } = data;
+    await this.repoConfigRepo.update(id, updateData);
+    if (tags !== undefined) {
+      await this.repoConfigRepo.setTagsForConfig(id, tags);
+    }
   }
 
   async updateRepoConfigWebhook(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void> {

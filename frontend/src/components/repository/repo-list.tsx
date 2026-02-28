@@ -101,7 +101,7 @@ export function RepoList({
               <TableHead>Provider</TableHead>
               <TableHead>Platform</TableHead>
               <TableHead>Channel ID</TableHead>
-              <TableHead>Tag</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12" />
             </TableRow>
@@ -122,9 +122,19 @@ export function RepoList({
                   {repo.channelId}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={repo.tag ? "default" : "secondary"} className="text-xs">
-                    {repo.tag ?? "default"}
-                  </Badge>
+                  {repo.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {repo.tags.map((t) => (
+                        <Badge key={t} variant="default" className="text-xs">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">
+                      default
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <RepoStatusBadge
@@ -206,9 +216,17 @@ export function RepoList({
                 <Badge variant="outline" className="text-xs">
                   {repo.platform}
                 </Badge>
-                <Badge variant={repo.tag ? "default" : "secondary"} className="text-xs">
-                  {repo.tag ?? "default"}
-                </Badge>
+                {repo.tags.length > 0 ? (
+                  repo.tags.map((t) => (
+                    <Badge key={t} variant="default" className="text-xs">
+                      {t}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    default
+                  </Badge>
+                )}
                 <span className="truncate font-mono text-xs text-muted-foreground">
                   #{repo.channelId}
                 </span>
