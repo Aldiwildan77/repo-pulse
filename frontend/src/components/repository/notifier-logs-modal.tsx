@@ -11,8 +11,30 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useRepositoryMutations, type NotifierLog } from "@/hooks/use-repositories";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CheckCircle2,
+  XCircle,
+  SkipForward,
+  GitPullRequest,
+  GitMerge,
+  ThumbsUp,
+  MessageSquareWarning,
+  Tag,
+  AtSign,
+  CircleDot,
+  CheckCircle,
+  ScrollText,
+  Inbox,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -31,6 +53,23 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   sent: "default",
   failed: "destructive",
   skipped: "secondary",
+};
+
+const STATUS_ICONS: Record<string, { icon: LucideIcon; tip: string }> = {
+  sent: { icon: CheckCircle2, tip: "Notification delivered successfully" },
+  failed: { icon: XCircle, tip: "Notification failed to send" },
+  skipped: { icon: SkipForward, tip: "Notification skipped (disabled or filtered)" },
+};
+
+const EVENT_ICONS: Record<string, LucideIcon> = {
+  pr_opened: GitPullRequest,
+  pr_merged: GitMerge,
+  pr_review_approved: ThumbsUp,
+  pr_review_changes_requested: MessageSquareWarning,
+  pr_label: Tag,
+  comment: AtSign,
+  issue_opened: CircleDot,
+  issue_closed: CheckCircle,
 };
 
 interface NotifierLogsModalProps {
@@ -95,40 +134,64 @@ export function NotifierLogsModal({
               ))}
             </div>
           ) : logs.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No logs recorded yet.
-            </p>
+            <div className="py-8 text-center text-muted-foreground">
+              <Inbox className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm">No logs recorded yet.</p>
+              <p className="mt-1 text-xs">Events will appear here once webhooks are received.</p>
+            </div>
           ) : (
             <div className="space-y-1">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 rounded-lg border px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={STATUS_VARIANT[log.status] ?? "outline"} className="text-xs">
-                        {log.status}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {log.platform}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {EVENT_LABELS[log.eventType] ?? log.eventType}
-                      </span>
+              {logs.map((log) => {
+                const StatusIcon = STATUS_ICONS[log.status]?.icon ?? ScrollText;
+                const statusTip = STATUS_ICONS[log.status]?.tip ?? log.status;
+                const EventIcon = EVENT_ICONS[log.eventType] ?? ScrollText;
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-start gap-3 rounded-lg border px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant={STATUS_VARIANT[log.status] ?? "outline"} className="flex items-center gap-1 text-xs">
+                              <StatusIcon className="h-3 w-3" />
+                              {log.status}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>{statusTip}</TooltipContent>
+                        </Tooltip>
+                        <Badge variant="outline" className="text-xs">
+                          {log.platform}
+                        </Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <EventIcon className="h-3 w-3" />
+                              {EVENT_LABELS[log.eventType] ?? log.eventType}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>Event type: {EVENT_LABELS[log.eventType] ?? log.eventType}</TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="mt-1 truncate text-sm">{log.summary}</p>
+                      {log.errorMessage && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="mt-0.5 truncate text-xs text-destructive">
+                              {log.errorMessage}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-sm">{log.errorMessage}</TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
-                    <p className="mt-1 truncate text-sm">{log.summary}</p>
-                    {log.errorMessage && (
-                      <p className="mt-0.5 truncate text-xs text-destructive">
-                        {log.errorMessage}
-                      </p>
-                    )}
+                    <time className="shrink-0 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </time>
                   </div>
-                  <time className="shrink-0 text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(log.createdAt).toLocaleString()}
-                  </time>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

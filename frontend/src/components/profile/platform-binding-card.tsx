@@ -1,4 +1,4 @@
-import { LinkIcon, ExternalLinkIcon } from "lucide-react";
+import { LinkIcon, ExternalLinkIcon, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,6 +6,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,14 +34,28 @@ export function PlatformBindingCard({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{label}</CardTitle>
-          <Badge variant={isConnected ? "default" : "secondary"}>
-            {isConnected ? "Connected" : "Not Connected"}
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant={isConnected ? "default" : "secondary"} className="flex items-center gap-1">
+                {isConnected ? (
+                  <CheckCircle2 className="h-3 w-3" />
+                ) : (
+                  <AlertCircle className="h-3 w-3" />
+                )}
+                {isConnected ? "Connected" : "Not Connected"}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isConnected
+                ? `Your ${label} account is linked and active`
+                : `Link your ${label} account to enable notifications`}
+            </TooltipContent>
+          </Tooltip>
         </div>
         <CardDescription>
           {isConnected
-            ? `Your ${label} account is linked. You'll receive mention notifications.`
-            : `Connect your ${label} account to receive mention notifications.`}
+            ? `Your ${label} account is linked. You'll receive @mention notifications via direct message.`
+            : `Connect your ${label} account to receive @mention notifications when someone tags you in a PR or issue.`}
         </CardDescription>
       </CardHeader>
       <CardContent>

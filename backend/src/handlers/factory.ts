@@ -11,6 +11,7 @@ import { AuthHandler } from "./auth.handler.js";
 import { AdminHandler } from "./admin.handler.js";
 import { TotpHandler } from "./totp.handler.js";
 import { HealthHandler } from "./health.handler.js";
+import { FeedbackHandler } from "./feedback.handler.js";
 import { AuthMiddleware } from "./middleware/auth.middleware.js";
 
 export class HandlerFactory {
@@ -19,6 +20,7 @@ export class HandlerFactory {
   readonly admin: AdminHandler;
   readonly totp: TotpHandler;
   readonly health: HealthHandler;
+  readonly feedback: FeedbackHandler;
 
   constructor(config: Config, modules: ModuleFactory, infra: InfrastructureFactory) {
     const authMiddleware = new AuthMiddleware(modules.auth);
@@ -36,6 +38,7 @@ export class HandlerFactory {
     this.admin = new AdminHandler(modules.admin, modules.auth, authMiddleware);
     this.totp = new TotpHandler(modules.totp, modules.auth, config, authMiddleware);
     this.health = new HealthHandler();
+    this.feedback = new FeedbackHandler(modules.feedback, authMiddleware);
   }
 
   registerAll(app: FastifyInstance): void {
@@ -44,6 +47,7 @@ export class HandlerFactory {
     this.auth.register(app);
     this.totp.register(app);
     this.admin.register(app);
+    this.feedback.register(app);
   }
 }
 

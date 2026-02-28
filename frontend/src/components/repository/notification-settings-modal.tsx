@@ -8,19 +8,35 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRepositoryMutations, type RepoEventToggle } from "@/hooks/use-repositories";
+import {
+  GitPullRequest,
+  GitMerge,
+  ThumbsUp,
+  MessageSquareWarning,
+  Tag,
+  AtSign,
+  CircleDot,
+  CheckCircle2,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const EVENT_TYPES = [
-  { key: "pr_opened", label: "PR Opened" },
-  { key: "pr_merged", label: "PR Merged / Closed" },
-  { key: "pr_review_approved", label: "PR Approved" },
-  { key: "pr_review_changes_requested", label: "PR Changes Requested" },
-  { key: "pr_label", label: "PR Label Changed" },
-  { key: "comment", label: "Mentions in Comments" },
-  { key: "issue_opened", label: "Issue Opened" },
-  { key: "issue_closed", label: "Issue Closed" },
+const EVENT_TYPES: { key: string; label: string; description: string; icon: LucideIcon }[] = [
+  { key: "pr_opened", label: "PR Opened", description: "When a new pull request is created", icon: GitPullRequest },
+  { key: "pr_merged", label: "PR Merged / Closed", description: "When a PR is merged or closed (adds reaction to original message)", icon: GitMerge },
+  { key: "pr_review_approved", label: "PR Approved", description: "When a reviewer approves a pull request", icon: ThumbsUp },
+  { key: "pr_review_changes_requested", label: "Changes Requested", description: "When a reviewer requests changes on a PR", icon: MessageSquareWarning },
+  { key: "pr_label", label: "PR Label Changed", description: "When a label is added to or removed from a PR", icon: Tag },
+  { key: "comment", label: "Mentions in Comments", description: "When someone @mentions a bound user in a PR or issue comment", icon: AtSign },
+  { key: "issue_opened", label: "Issue Opened", description: "When a new issue is created in the repository", icon: CircleDot },
+  { key: "issue_closed", label: "Issue Closed", description: "When an issue is resolved and closed", icon: CheckCircle2 },
 ];
 
 interface NotificationSettingsModalProps {
@@ -52,14 +68,12 @@ export function NotificationSettingsModal({
 
   const getToggleValue = (eventType: string): boolean => {
     const toggle = toggles.find((t) => t.eventType === eventType);
-    // Default to true if no row exists (opt-out model)
     return toggle ? toggle.isEnabled : true;
   };
 
   const handleToggle = async (eventType: string, isEnabled: boolean) => {
     if (!repoConfigId) return;
 
-    // Optimistic update
     setToggles((prev) => {
       const existing = prev.find((t) => t.eventType === eventType);
       if (existing) {
@@ -73,7 +87,6 @@ export function NotificationSettingsModal({
     try {
       await upsertEventToggle(repoConfigId, eventType, isEnabled);
     } catch (err) {
-      // Revert on failure
       setToggles((prev) =>
         prev.map((t) =>
           t.eventType === eventType ? { ...t, isEnabled: !isEnabled } : t,
@@ -90,28 +103,42 @@ export function NotificationSettingsModal({
           <DialogTitle>Notification Settings</DialogTitle>
           <DialogDescription>
             Configure which events trigger notifications for{" "}
-            <span className="font-medium text-foreground">{repoName}</span>
+            <span className="font-medium text-foreground">{repoName}</span>.
+            All events are enabled by default.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="space-y-2 py-2">
           {isLoading ? (
             Array.from({ length: EVENT_TYPES.length }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-full" />
+              <Skeleton key={i} className="h-12 w-full" />
             ))
           ) : (
             EVENT_TYPES.map((event) => (
               <label
                 key={event.key}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
+                className="flex items-center gap-3 rounded-lg border px-4 py-3"
               >
-                <span className="text-sm font-medium">{event.label}</span>
-                <Switch
-                  checked={getToggleValue(event.key)}
-                  onCheckedChange={(checked: boolean) =>
-                    handleToggle(event.key, checked)
-                  }
-                />
+                <event.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium">{event.label}</span>
+                  <p className="text-xs text-muted-foreground">{event.description}</p>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch
+                        checked={getToggleValue(event.key)}
+                        onCheckedChange={(checked: boolean) =>
+                          handleToggle(event.key, checked)
+                        }
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {getToggleValue(event.key) ? "Click to disable" : "Click to enable"}
+                  </TooltipContent>
+                </Tooltip>
               </label>
             ))
           )}

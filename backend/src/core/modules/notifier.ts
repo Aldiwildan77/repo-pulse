@@ -273,6 +273,7 @@ export class NotifierModule {
         if (!pusher) continue;
 
         await pusher.addReaction(msg.platformChannelId, msg.platformMessageId, emoji);
+        await pusher.removeButtons(msg.platformChannelId, msg.platformMessageId);
         await this.prMessageRepo.updateStatus(msg.id, status);
 
         if (matchingCfg) {

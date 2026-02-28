@@ -6,4 +6,5 @@ export type { WebhookEvent } from "./webhook-event.js";
 export type { ConnectedRepo } from "./connected-repo.js";
 export type { UserTotp } from "./user-totp.js";
 export type { NotifierLog } from "./notifier-log.js";
+export type { Feedback } from "./feedback.js";
 export type { SourceProvider } from "../webhook/webhook-provider.js";

@@ -163,6 +163,18 @@ export class DiscordPusher implements Pusher {
     await message.react(emoji);
   }
 
+  async removeButtons(channelId: string, messageId: string): Promise<void> {
+    await this.ready;
+
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+      throw new Error(`Channel ${channelId} not found or not a text channel`);
+    }
+
+    const message = await channel.messages.fetch(messageId);
+    await message.edit({ components: [] });
+  }
+
   async listGuilds(): Promise<Guild[]> {
     await this.ready;
     return this.client.guilds.cache.map((g) => ({

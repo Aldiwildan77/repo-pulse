@@ -10,6 +10,7 @@ export interface Database {
   webhook_events: WebhookEventTable;
   connected_repos: ConnectedRepoTable;
   notifier_logs: NotifierLogTable;
+  feedbacks: FeedbackTable;
 }
 
 export interface PrMessageTable {
@@ -133,3 +134,13 @@ export interface UserTotpTable {
 export type UserTotpRow = Selectable<UserTotpTable>;
 export type NewUserTotpRow = Insertable<UserTotpTable>;
 export type UserTotpUpdate = Updateable<UserTotpTable>;
+
+export interface FeedbackTable {
+  id: Generated<number>;
+  user_id: number;
+  message: string;
+  created_at: Generated<Date>;
+}
+
+export type FeedbackRow = Selectable<FeedbackTable>;
+export type NewFeedbackRow = Insertable<FeedbackTable>;

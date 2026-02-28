@@ -9,12 +9,14 @@ import { NotifierModule } from "./notifier.js";
 import { AuthModule } from "./auth.js";
 import { AdminModule } from "./admin.js";
 import { TotpModule } from "./totp.js";
+import { FeedbackModule } from "./feedback.js";
 
 export class ModuleFactory {
   readonly notifier: NotifierModule;
   readonly auth: AuthModule;
   readonly admin: AdminModule;
   readonly totp: TotpModule;
+  readonly feedback: FeedbackModule;
 
   constructor(config: Config, repos: RepositoryFactory, infra: InfrastructureFactory) {
     const pushers = new Map<Platform, Pusher>([
@@ -49,5 +51,7 @@ export class ModuleFactory {
     );
 
     this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, repos.notifierLog, pushers);
+
+    this.feedback = new FeedbackModule(repos.feedback);
   }
 }

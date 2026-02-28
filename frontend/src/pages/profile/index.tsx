@@ -11,8 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/ui/page-header";
+import { Link2, Info } from "lucide-react";
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -61,7 +67,18 @@ export function ProfilePage() {
       <Separator />
 
       <div>
-        <h3 className="mb-4 text-lg font-semibold">Platform Connections</h3>
+        <div className="mb-4 flex items-center gap-2">
+          <Link2 className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">Platform Connections</h3>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent>
+              Connect your accounts to receive @mention notifications via direct message
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <PlatformBindingCard
             label="GitHub"

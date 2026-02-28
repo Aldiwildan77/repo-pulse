@@ -165,6 +165,32 @@ export class SlackPusher implements Pusher {
     });
   }
 
+  async removeButtons(channelId: string, messageId: string): Promise<void> {
+    const result = await this.client.conversations.history({
+      channel: channelId,
+      latest: messageId,
+      inclusive: true,
+      limit: 1,
+    });
+
+    const originalMessage = result.messages?.[0];
+    if (!originalMessage) {
+      throw new Error(`Message ${messageId} not found in channel ${channelId}`);
+    }
+
+    const blocksWithoutActions = (originalMessage.blocks ?? []).filter(
+      (block) => block.type !== "actions",
+    );
+
+    await this.client.chat.update({
+      channel: channelId,
+      ts: messageId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      blocks: blocksWithoutActions as any,
+      text: originalMessage.text ?? "",
+    });
+  }
+
   async listChannels(): Promise<Channel[]> {
     const channels: Channel[] = [];
     let cursor: string | undefined;

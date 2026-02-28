@@ -82,6 +82,11 @@ export interface Pusher {
     emoji: string,
   ): Promise<void>;
 
+  removeButtons(
+    channelId: string,
+    messageId: string,
+  ): Promise<void>;
+
   listGuilds?(): Promise<Guild[]>;
   listChannels(guildId?: string): Promise<Channel[]>;
 }

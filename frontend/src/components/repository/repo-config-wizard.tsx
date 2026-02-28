@@ -4,6 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Stepper } from "@/components/ui/stepper";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -16,6 +21,18 @@ import {
 } from "./repo-config-form";
 import { defaultValues } from "./repo-config-defaults";
 import { useRepositoryMutations, type RepoConfigInput } from "@/hooks/use-repositories";
+import {
+  GitPullRequest,
+  GitMerge,
+  ThumbsUp,
+  MessageSquareWarning,
+  Tag,
+  AtSign,
+  CircleDot,
+  CheckCircle2,
+  Info,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const STEPS = [
   { label: "Source" },
@@ -23,15 +40,21 @@ const STEPS = [
   { label: "Event Notifications" },
 ];
 
-const EVENT_TYPES = [
-  { key: "pr_opened", label: "PR Opened" },
-  { key: "pr_merged", label: "PR Merged / Closed" },
-  { key: "pr_review_approved", label: "PR Approved" },
-  { key: "pr_review_changes_requested", label: "PR Changes Requested" },
-  { key: "pr_label", label: "PR Label Changed" },
-  { key: "comment", label: "Mentions in Comments" },
-  { key: "issue_opened", label: "Issue Opened" },
-  { key: "issue_closed", label: "Issue Closed" },
+const EVENT_TYPES: { key: string; label: string; description: string; icon: LucideIcon }[] = [
+  { key: "pr_opened", label: "PR Opened", description: "When a new pull request is created", icon: GitPullRequest },
+  { key: "pr_merged", label: "PR Merged / Closed", description: "When a PR is merged or closed", icon: GitMerge },
+  { key: "pr_review_approved", label: "PR Approved", description: "When a reviewer approves a PR", icon: ThumbsUp },
+  { key: "pr_review_changes_requested", label: "Changes Requested", description: "When a reviewer requests changes", icon: MessageSquareWarning },
+  { key: "pr_label", label: "PR Label Changed", description: "When a label is added or removed", icon: Tag },
+  { key: "comment", label: "Mentions in Comments", description: "When someone @mentions a bound user", icon: AtSign },
+  { key: "issue_opened", label: "Issue Opened", description: "When a new issue is created", icon: CircleDot },
+  { key: "issue_closed", label: "Issue Closed", description: "When an issue is closed", icon: CheckCircle2 },
+];
+
+const STEP_DESCRIPTIONS = [
+  "Choose where to listen for events",
+  "Choose where to send notifications",
+  "Select which events to notify on",
 ];
 
 export function RepoConfigWizard() {
@@ -97,6 +120,13 @@ export function RepoConfigWizard() {
       <CardContent className="space-y-8">
         <Stepper steps={STEPS} currentStep={currentStep} />
 
+        <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-2">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Info className="h-4 w-4 shrink-0" />
+            Step {currentStep + 1}: {STEP_DESCRIPTIONS[currentStep]}
+          </p>
+        </div>
+
         {currentStep === 0 && (
           <SourceStepContent values={values} setValues={setValues} />
         )}
@@ -106,22 +136,35 @@ export function RepoConfigWizard() {
         )}
 
         {currentStep === 2 && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {EVENT_TYPES.map((event) => (
               <label
                 key={event.key}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
+                className="flex items-center gap-3 rounded-lg border px-4 py-3"
               >
-                <span className="text-sm font-medium">{event.label}</span>
-                <Switch
-                  checked={eventToggles[event.key]}
-                  onCheckedChange={(checked: boolean) =>
-                    setEventToggles((prev) => ({
-                      ...prev,
-                      [event.key]: checked,
-                    }))
-                  }
-                />
+                <event.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium">{event.label}</span>
+                  <p className="text-xs text-muted-foreground">{event.description}</p>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch
+                        checked={eventToggles[event.key]}
+                        onCheckedChange={(checked: boolean) =>
+                          setEventToggles((prev) => ({
+                            ...prev,
+                            [event.key]: checked,
+                          }))
+                        }
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {eventToggles[event.key] ? "Click to disable" : "Click to enable"}
+                  </TooltipContent>
+                </Tooltip>
               </label>
             ))}
           </div>

@@ -1,5 +1,12 @@
 import { Link } from "react-router";
-import { GitFork, MessageSquare, Hash, ArrowRight } from "lucide-react";
+import {
+  GitFork,
+  MessageSquare,
+  Hash,
+  ArrowRight,
+  Plus,
+  Info,
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useRepositories } from "@/hooks/use-repositories";
 import {
@@ -14,6 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FeedbackDialog } from "@/components/feedback-dialog";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -30,14 +43,21 @@ export function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={`Welcome back, ${user?.providerUsername}`}
+        description={`Welcome back, ${user?.providerUsername ?? user?.googleEmail ?? "there"}`}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Repositories</CardTitle>
-            <GitFork className="h-4 w-4 text-muted-foreground" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <GitFork className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                Total repositories configured for notifications
+              </TooltipContent>
+            </Tooltip>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -54,7 +74,14 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Discord</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                Discord connection for @mention notifications
+              </TooltipContent>
+            </Tooltip>
           </CardHeader>
           <CardContent>
             <Badge variant={user?.discordBound ? "default" : "secondary"}>
@@ -62,8 +89,8 @@ export function DashboardPage() {
             </Badge>
             <p className="mt-1 text-xs text-muted-foreground">
               {user?.discordBound
-                ? "Receiving notifications"
-                : "Connect in Profile"}
+                ? "Receiving mention notifications via DM"
+                : "Connect in Profile to receive DM mentions"}
             </p>
           </CardContent>
         </Card>
@@ -71,7 +98,14 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Slack</CardTitle>
-            <Hash className="h-4 w-4 text-muted-foreground" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Hash className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                Slack connection for @mention notifications
+              </TooltipContent>
+            </Tooltip>
           </CardHeader>
           <CardContent>
             <Badge variant={user?.slackBound ? "default" : "secondary"}>
@@ -79,8 +113,8 @@ export function DashboardPage() {
             </Badge>
             <p className="mt-1 text-xs text-muted-foreground">
               {user?.slackBound
-                ? "Receiving notifications"
-                : "Connect in Profile"}
+                ? "Receiving mention notifications via DM"
+                : "Connect in Profile to receive DM mentions"}
             </p>
           </CardContent>
         </Card>
@@ -110,9 +144,16 @@ export function DashboardPage() {
             </div>
           ) : repositories.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
+              <Info className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
               <p>No repositories configured yet.</p>
-              <Button asChild variant="link" className="mt-2">
-                <Link to="/repositories/new">Add your first repository</Link>
+              <p className="mt-1 text-xs">
+                Add a repository to start receiving PR notifications in your channels.
+              </p>
+              <Button asChild variant="default" size="sm" className="mt-3">
+                <Link to="/repositories/new">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add your first repository
+                </Link>
               </Button>
             </div>
           ) : (
@@ -134,17 +175,38 @@ export function DashboardPage() {
                       <Badge variant="outline">{repo.platform}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={repo.isActive ? "default" : "secondary"}
-                      >
-                        {repo.isActive ? "Active" : "Inactive"}
-                      </Badge>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant={repo.isActive ? "default" : "secondary"}
+                          >
+                            {repo.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {repo.isActive
+                            ? "Notifications are being sent for this repository"
+                            : "Notifications are paused for this repository"}
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Share your feedback</CardTitle>
+          <CardDescription>
+            Help us improve the new homepage by sharing your thoughts and suggestions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FeedbackDialog />
         </CardContent>
       </Card>
     </div>

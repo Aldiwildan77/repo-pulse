@@ -12,6 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ShieldCheck, ShieldAlert, KeyRound, QrCode, AlertTriangle } from "lucide-react";
 
 interface SetupData {
   qrCodeDataUrl: string;
@@ -86,25 +92,41 @@ export function TotpSection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Set Up Two-Factor Authentication</CardTitle>
+          <div className="flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-primary" />
+            <CardTitle>Set Up Two-Factor Authentication</CardTitle>
+          </div>
           <CardDescription>
             Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-center">
-            <img src={state.data.qrCodeDataUrl} alt="TOTP QR Code" className="rounded-lg" />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex justify-center">
+                <img src={state.data.qrCodeDataUrl} alt="TOTP QR Code" className="rounded-lg" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              Scan this with your authenticator app to add the account
+            </TooltipContent>
+          </Tooltip>
 
           <div className="space-y-1">
-            <Label>Manual entry key</Label>
+            <Label className="flex items-center gap-1.5">
+              <KeyRound className="h-3.5 w-3.5" />
+              Manual entry key
+            </Label>
             <code className="block rounded bg-muted px-3 py-2 text-sm break-all">
               {state.data.manualSecret}
             </code>
           </div>
 
           <div className="space-y-1">
-            <Label>Backup codes</Label>
+            <Label className="flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+              Backup codes
+            </Label>
             <p className="text-xs text-muted-foreground">
               Save these codes in a safe place. Each can be used once if you lose access to your authenticator.
             </p>
@@ -153,6 +175,7 @@ export function TotpSection() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-green-500" />
             <CardTitle>Two-Factor Authentication</CardTitle>
             <Badge variant="default">Enabled</Badge>
           </div>
@@ -207,7 +230,10 @@ export function TotpSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Two-Factor Authentication</CardTitle>
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+          <CardTitle>Two-Factor Authentication</CardTitle>
+        </div>
         <CardDescription>
           Add an extra layer of security to your account with a TOTP authenticator app.
         </CardDescription>
