@@ -3,7 +3,6 @@ import { Analytics } from "@vercel/analytics/react";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { PublicRoute } from "@/components/auth/public-route";
 import { LoginPage } from "@/pages/login";
 import { LandingPage } from "@/pages/landing";
 import { DashboardPage } from "@/pages/dashboard";
@@ -20,9 +19,7 @@ export default function App() {
     <>
     <Analytics />
     <Routes>
-      <Route element={<PublicRoute />}>
-        <Route index element={<LandingPage />} />
-      </Route>
+      <Route index element={<LandingPage />} />
 
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
