@@ -47,6 +47,10 @@ export class AdminModule {
     return this.repoConfigRepo.update(id, data);
   }
 
+  async updateRepoConfigWebhook(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void> {
+    return this.repoConfigRepo.updateWebhookId(id, webhookId, webhookCreatedBy);
+  }
+
   async deleteRepoConfig(id: number): Promise<void> {
     return this.repoConfigRepo.delete(id);
   }
@@ -76,6 +80,10 @@ export class AdminModule {
       const slug = this.config.githubAppSlug;
       if (!slug) return null;
       return `https://github.com/apps/${slug}/installations/new`;
+    }
+    if (provider === "gitlab") {
+      if (!this.config.gitlabClientId) return null;
+      return `/api/auth/gitlab`;
     }
     return null;
   }

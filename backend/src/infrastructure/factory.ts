@@ -10,6 +10,8 @@ import { GitHubOAuthService } from "./auth/github-oauth.js";
 import { GoogleOAuthService } from "./auth/google-oauth.js";
 import { DiscordOAuthService } from "./auth/discord-oauth.js";
 import { SlackOAuthService } from "./auth/slack-oauth.js";
+import { GitLabOAuthService } from "./auth/gitlab-oauth.js";
+import { GitLabApiClient } from "./auth/gitlab-api.js";
 import { TotpCryptoService } from "./auth/totp-crypto.js";
 import { RateLimiter } from "./rate-limiter/rate-limiter.js";
 import { AppLogger } from "./logger/logger.js";
@@ -22,6 +24,8 @@ export class InfrastructureFactory {
   readonly idempotency: IdempotencyStore;
   readonly githubOAuth: GitHubOAuthService;
   readonly googleOAuth: GoogleOAuthService | null;
+  readonly gitlabOAuth: GitLabOAuthService | null;
+  readonly gitlabApi: GitLabApiClient;
   readonly discordOAuth: DiscordOAuthService;
   readonly slackOAuth: SlackOAuthService;
   readonly totpCrypto: TotpCryptoService;
@@ -46,6 +50,15 @@ export class InfrastructureFactory {
             config.googleCallbackUrl,
           )
         : null;
+    this.gitlabOAuth =
+      config.gitlabClientId && config.gitlabClientSecret && config.gitlabCallbackUrl
+        ? new GitLabOAuthService(
+            config.gitlabClientId,
+            config.gitlabClientSecret,
+            config.gitlabCallbackUrl,
+          )
+        : null;
+    this.gitlabApi = new GitLabApiClient();
     this.discordOAuth = new DiscordOAuthService(
       config.discordClientId,
       config.discordClientSecret,

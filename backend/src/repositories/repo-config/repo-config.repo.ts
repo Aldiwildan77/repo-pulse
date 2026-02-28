@@ -111,6 +111,18 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
       .execute();
   }
 
+  async updateWebhookId(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void> {
+    await this.db
+      .updateTable("repo_configs")
+      .set({
+        webhook_id: webhookId,
+        webhook_created_by: webhookCreatedBy,
+        updated_at: new Date(),
+      })
+      .where("id", "=", id)
+      .execute();
+  }
+
   async delete(id: number): Promise<void> {
     await this.db
       .deleteFrom("repo_configs")

@@ -23,6 +23,8 @@ export interface RepoConfigRepository {
     isActive?: boolean;
   }): Promise<void>;
 
+  updateWebhookId(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void>;
+
   delete(id: number): Promise<void>;
 
   getEventToggles(repoConfigId: number): Promise<RepoEventToggle[]>;

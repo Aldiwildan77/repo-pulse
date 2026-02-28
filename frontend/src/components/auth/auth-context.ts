@@ -16,6 +16,8 @@ export interface User {
   githubBound: boolean;
   googleBound: boolean;
   googleEmail: string | null;
+  gitlabBound: boolean;
+  gitlabUsername: string | null;
   totpEnabled: boolean;
   identities: UserIdentity[];
 }

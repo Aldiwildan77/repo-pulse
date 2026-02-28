@@ -25,6 +25,9 @@ const configSchema = z.object({
   googleClientSecret: z.string().min(1).optional(),
   googleCallbackUrl: z.string().url().optional(),
 
+  gitlabClientId: z.string().min(1).optional(),
+  gitlabClientSecret: z.string().min(1).optional(),
+  gitlabCallbackUrl: z.string().url().optional(),
   gitlabWebhookSecret: z.string().optional(),
   bitbucketWebhookSecret: z.string().optional(),
 
@@ -66,6 +69,9 @@ export function loadConfig(): Config {
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL,
 
+    gitlabClientId: process.env.GITLAB_CLIENT_ID,
+    gitlabClientSecret: process.env.GITLAB_CLIENT_SECRET,
+    gitlabCallbackUrl: process.env.GITLAB_CALLBACK_URL,
     gitlabWebhookSecret: process.env.GITLAB_WEBHOOK_SECRET,
     bitbucketWebhookSecret: process.env.BITBUCKET_WEBHOOK_SECRET,
 

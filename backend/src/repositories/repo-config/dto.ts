@@ -9,6 +9,8 @@ export function toRepoConfig(row: RepoConfigRow): RepoConfig {
     platform: row.platform,
     channelId: row.channel_id,
     isActive: row.is_active,
+    webhookId: row.webhook_id,
+    webhookCreatedBy: row.webhook_created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

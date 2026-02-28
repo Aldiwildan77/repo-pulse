@@ -8,6 +8,8 @@ export interface RepoConfig {
   platform: Platform;
   channelId: string;
   isActive: boolean;
+  webhookId: string | null;
+  webhookCreatedBy: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

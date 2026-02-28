@@ -40,6 +40,10 @@ export class GitLabWebhookProvider implements WebhookProvider {
       return this.parseMergeRequestApproval(payload, eventType);
     }
 
+    if (eventType === "Issue Hook") {
+      return this.parseIssue(payload);
+    }
+
     return { kind: "ignored" };
   }
 
@@ -85,6 +89,66 @@ export class GitLabWebhookProvider implements WebhookProvider {
       };
     }
 
+    if (action === "update") {
+      return this.parseMergeRequestLabelChange(payload);
+    }
+
+    return { kind: "ignored" };
+  }
+
+  private parseMergeRequestLabelChange(payload: Record<string, unknown>): WebhookEvent {
+    const changes = payload.changes as Record<string, unknown> | undefined;
+    if (!changes?.labels) return { kind: "ignored" };
+
+    const labelChanges = changes.labels as {
+      previous: Array<{ title: string; color: string }>;
+      current: Array<{ title: string; color: string }>;
+    };
+
+    const attrs = payload.object_attributes as Record<string, unknown>;
+    const project = payload.project as Record<string, unknown>;
+    const user = payload.user as Record<string, unknown>;
+    const repo = project.path_with_namespace as string;
+
+    const previousNames = new Set(labelChanges.previous.map((l) => l.title));
+    const currentNames = new Set(labelChanges.current.map((l) => l.title));
+
+    // Find added labels
+    for (const label of labelChanges.current) {
+      if (!previousNames.has(label.title)) {
+        return {
+          kind: "pr_label_changed",
+          data: {
+            prId: attrs.iid as number,
+            repo,
+            action: "labeled",
+            label: { name: label.title, color: label.color },
+            author: user.username as string,
+            prTitle: attrs.title as string,
+            prUrl: attrs.url as string,
+          },
+        };
+      }
+    }
+
+    // Find removed labels
+    for (const label of labelChanges.previous) {
+      if (!currentNames.has(label.title)) {
+        return {
+          kind: "pr_label_changed",
+          data: {
+            prId: attrs.iid as number,
+            repo,
+            action: "unlabeled",
+            label: { name: label.title, color: label.color },
+            author: user.username as string,
+            prTitle: attrs.title as string,
+            prUrl: attrs.url as string,
+          },
+        };
+      }
+    }
+
     return { kind: "ignored" };
   }
 
@@ -106,6 +170,42 @@ export class GitLabWebhookProvider implements WebhookProvider {
         state: isApproved ? "approved" : "changes_requested",
       },
     };
+  }
+
+  private parseIssue(payload: Record<string, unknown>): WebhookEvent {
+    const attrs = payload.object_attributes as Record<string, unknown>;
+    const project = payload.project as Record<string, unknown>;
+    const user = payload.user as Record<string, unknown>;
+    const repo = project.path_with_namespace as string;
+    const action = attrs.action as string;
+
+    if (action === "open") {
+      return {
+        kind: "issue_opened",
+        data: {
+          issueId: attrs.iid as number,
+          repo,
+          title: attrs.title as string,
+          author: user.username as string,
+          url: attrs.url as string,
+        },
+      };
+    }
+
+    if (action === "close") {
+      return {
+        kind: "issue_closed",
+        data: {
+          issueId: attrs.iid as number,
+          repo,
+          title: attrs.title as string,
+          author: user.username as string,
+          url: attrs.url as string,
+        },
+      };
+    }
+
+    return { kind: "ignored" };
   }
 
   private parseNote(payload: Record<string, unknown>): WebhookEvent {

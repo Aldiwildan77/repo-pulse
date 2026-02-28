@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { AdminModule } from "../core/modules/admin.js";
 import type { AuthModule } from "../core/modules/auth.js";
+import type { Config } from "../infrastructure/config.js";
+import type { GitLabApiClient } from "../infrastructure/auth/gitlab-api.js";
 import type { Platform } from "../core/entities/index.js";
 import type { SourceProvider } from "../core/webhook/webhook-provider.js";
 import type { AuthMiddleware } from "./middleware/auth.middleware.js";
@@ -9,6 +11,8 @@ export class AdminHandler {
   constructor(
     private readonly admin: AdminModule,
     private readonly auth: AuthModule,
+    private readonly config: Config,
+    private readonly gitlabApi: GitLabApiClient,
     private readonly authMiddleware: AuthMiddleware,
   ) {}
 
@@ -118,7 +122,29 @@ export class AdminHandler {
     reply: FastifyReply,
   ): Promise<void> {
     const { provider, providerRepo, platform, channelId } = request.body;
+    const userId = parseInt(request.userId!, 10);
+
     const config = await this.admin.createRepoConfig({ provider, providerRepo, platform, channelId });
+
+    if (provider === "gitlab" && this.config.gitlabWebhookSecret) {
+      try {
+        const accessToken = await this.auth.getGitlabTokenForUser(userId);
+        const webhookUrl = this.getGitlabWebhookUrl();
+        const hookId = await this.gitlabApi.createProjectHook(
+          accessToken,
+          providerRepo,
+          webhookUrl,
+          this.config.gitlabWebhookSecret,
+          { merge_requests_events: true, issues_events: true, note_events: true },
+        );
+        await this.admin.updateRepoConfigWebhook(config.id, String(hookId), userId);
+        config.webhookId = String(hookId);
+        config.webhookCreatedBy = userId;
+      } catch {
+        // Webhook creation failed but config was still created
+      }
+    }
+
     reply.code(201).send(config);
   }
 
@@ -164,6 +190,24 @@ export class AdminHandler {
     reply: FastifyReply,
   ): Promise<void> {
     const id = parseInt(request.params.id, 10);
+    const userId = parseInt(request.userId!, 10);
+
+    const config = await this.admin.getRepoConfigById(id);
+
+    if (config?.webhookId && config.provider === "gitlab" && config.webhookCreatedBy) {
+      try {
+        const tokenUserId = config.webhookCreatedBy ?? userId;
+        const accessToken = await this.auth.getGitlabTokenForUser(tokenUserId);
+        await this.gitlabApi.deleteProjectHook(
+          accessToken,
+          config.providerRepo,
+          parseInt(config.webhookId, 10),
+        );
+      } catch {
+        // Webhook deletion failed, still proceed with config deletion
+      }
+    }
+
     await this.admin.deleteRepoConfig(id);
     reply.code(204).send();
   }
@@ -268,5 +312,14 @@ export class AdminHandler {
   ): Promise<void> {
     const url = this.admin.getDiscordBotInviteUrl();
     reply.send({ url });
+  }
+
+  private getGitlabWebhookUrl(): string {
+    const callbackUrl = this.config.gitlabCallbackUrl;
+    if (callbackUrl) {
+      const origin = new URL(callbackUrl).origin;
+      return `${origin}/api/webhook/gitlab`;
+    }
+    return `${this.config.frontendUrl}/api/webhook/gitlab`;
   }
 }

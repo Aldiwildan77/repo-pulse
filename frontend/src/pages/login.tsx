@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAuthProviders } from "@/hooks/use-auth-providers";
 import { GitHubLoginButton } from "@/components/auth/github-login-button";
 import { GoogleLoginButton } from "@/components/auth/google-login-button";
+import { GitLabLoginButton } from "@/components/auth/gitlab-login-button";
 import {
   Card,
   CardContent,
@@ -65,6 +66,7 @@ export function LoginPage() {
         <div className="space-y-3">
           <GitHubLoginButton />
           {providers.includes("google") && <GoogleLoginButton />}
+          {providers.includes("gitlab") && <GitLabLoginButton />}
         </div>
 
         <p className="text-center text-xs text-muted-foreground">

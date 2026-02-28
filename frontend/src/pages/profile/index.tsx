@@ -25,10 +25,12 @@ export function ProfilePage() {
   const {
     githubBound,
     googleBound,
+    gitlabBound,
     discordBound,
     slackBound,
     githubConnectUrl,
     googleConnectUrl,
+    gitlabConnectUrl,
     discordConnectUrl,
     slackConnectUrl,
   } = useUserBindings();
@@ -89,6 +91,11 @@ export function ProfilePage() {
             label="Google"
             isConnected={googleBound}
             connectUrl={googleConnectUrl}
+          />
+          <PlatformBindingCard
+            label="GitLab"
+            isConnected={gitlabBound}
+            connectUrl={gitlabConnectUrl}
           />
           <PlatformBindingCard
             label="Discord"

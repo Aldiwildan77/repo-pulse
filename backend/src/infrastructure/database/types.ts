@@ -52,6 +52,9 @@ export interface UserIdentityTable {
   provider_user_id: string;
   provider_email: string | null;
   provider_username: string | null;
+  access_token_encrypted: string | null;
+  refresh_token_encrypted: string | null;
+  token_expires_at: Date | null;
   created_at: Generated<Date>;
 }
 
@@ -65,6 +68,8 @@ export interface RepoConfigTable {
   platform: "discord" | "slack";
   channel_id: string;
   is_active: Generated<boolean>;
+  webhook_id: string | null;
+  webhook_created_by: number | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

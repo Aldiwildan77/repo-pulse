@@ -44,10 +44,12 @@ export class ModuleFactory {
       repos.auth,
       infra.githubOAuth,
       infra.googleOAuth,
+      infra.gitlabOAuth,
       infra.discordOAuth,
       infra.slackOAuth,
       infra.jwt,
       this.totp,
+      infra.totpCrypto,
     );
 
     this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, repos.notifierLog, pushers);
