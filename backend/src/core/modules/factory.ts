@@ -10,6 +10,7 @@ import { AuthModule } from "./auth.js";
 import { AdminModule } from "./admin.js";
 import { TotpModule } from "./totp.js";
 import { FeedbackModule } from "./feedback.js";
+import { GitHubApiClient } from "../../infrastructure/auth/github-api.js";
 
 export class ModuleFactory {
   readonly notifier: NotifierModule;
@@ -30,13 +31,13 @@ export class ModuleFactory {
       repos.repoConfig,
       repos.userBinding,
       repos.webhookEvent,
-      repos.connectedRepo,
       repos.notifierLog,
       pushers,
       infra.logger.child({ module: "notifier" }),
     );
 
-    this.totp = new TotpModule(repos.userTotp, infra.totpCrypto, infra.jwt);
+
+    this.totp = new TotpModule(repos.userTotp, infra.crypto, infra.jwt);
 
     this.auth = new AuthModule(
       config,
@@ -49,10 +50,13 @@ export class ModuleFactory {
       infra.slackOAuth,
       infra.jwt,
       this.totp,
-      infra.totpCrypto,
+      infra.crypto,
     );
 
-    this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, repos.notifierLog, pushers);
+    const githubApi = new GitHubApiClient();
+
+    this.admin = new AdminModule(config, repos.repoConfig, repos.notifierLog, pushers, githubApi, infra.gitlabApi);
+    this.admin.setAuthModule(this.auth);
 
     this.feedback = new FeedbackModule(repos.feedback);
   }

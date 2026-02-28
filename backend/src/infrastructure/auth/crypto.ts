@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-export class TotpCryptoService {
+export class CryptoService {
   private readonly key: Buffer;
 
   constructor(jwtSecret: string) {

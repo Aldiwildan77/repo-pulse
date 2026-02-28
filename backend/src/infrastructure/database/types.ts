@@ -8,7 +8,7 @@ export interface Database {
   repo_configs: RepoConfigTable;
   repo_event_toggles: RepoEventToggleTable;
   webhook_events: WebhookEventTable;
-  connected_repos: ConnectedRepoTable;
+
   notifier_logs: NotifierLogTable;
   feedbacks: FeedbackTable;
 }
@@ -101,17 +101,6 @@ export interface WebhookEventTable {
 export type WebhookEventRow = Selectable<WebhookEventTable>;
 export type NewWebhookEventRow = Insertable<WebhookEventTable>;
 
-export interface ConnectedRepoTable {
-  id: Generated<number>;
-  provider: "github" | "gitlab" | "bitbucket";
-  provider_installation_id: string | null;
-  provider_repo: string;
-  connected_by: string;
-  created_at: Generated<Date>;
-}
-
-export type ConnectedRepoRow = Selectable<ConnectedRepoTable>;
-export type NewConnectedRepoRow = Insertable<ConnectedRepoTable>;
 
 export interface NotifierLogTable {
   id: Generated<number>;

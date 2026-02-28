@@ -1,19 +1,33 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
-import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
 import type { NotifierLogRepository } from "../repositories/notifier-log.repository.js";
-import type { Platform, RepoConfig, RepoEventToggle, ConnectedRepo, NotifierLog } from "../entities/index.js";
+import type { Platform, RepoConfig, RepoEventToggle, NotifierLog } from "../entities/index.js";
 import type { SourceProvider } from "../webhook/webhook-provider.js";
 import type { Pusher, Guild, Channel } from "./pusher/pusher.interface.js";
+import type { GitHubApiClient } from "../../infrastructure/auth/github-api.js";
+import type { GitLabApiClient } from "../../infrastructure/auth/gitlab-api.js";
+import type { AuthModule } from "./auth.js";
+
+export interface ProviderRepo {
+  provider: SourceProvider;
+  providerRepo: string;
+}
 
 export class AdminModule {
+  private authModule: AuthModule | null = null;
+
   constructor(
     private readonly config: Config,
     private readonly repoConfigRepo: RepoConfigRepository,
-    private readonly connectedRepoRepo: ConnectedRepoRepository,
     private readonly notifierLogRepo: NotifierLogRepository,
     private readonly pushers: Map<Platform, Pusher>,
+    private readonly githubApi: GitHubApiClient | null,
+    private readonly gitlabApi: GitLabApiClient | null,
   ) {}
+
+  setAuthModule(auth: AuthModule): void {
+    this.authModule = auth;
+  }
 
   async getRepoConfigById(id: number): Promise<RepoConfig | null> {
     return this.repoConfigRepo.findById(id);
@@ -93,8 +107,24 @@ export class AdminModule {
     return this.notifierLogRepo.findByRepoConfig(repoConfigId, limit, offset);
   }
 
-  async getConnectedRepos(userId: string): Promise<ConnectedRepo[]> {
-    return this.connectedRepoRepo.findByUser(userId);
+  async getProviderRepos(userId: number, provider: SourceProvider): Promise<ProviderRepo[]> {
+    if (!this.authModule) throw new Error("Auth module not initialized");
+
+    if (provider === "github") {
+      if (!this.githubApi) return [];
+      const token = await this.authModule.getGithubTokenForUser(userId);
+      const repos = await this.githubApi.listUserInstallationRepos(token);
+      return repos.map((r) => ({ provider: "github" as const, providerRepo: r.fullName }));
+    }
+
+    if (provider === "gitlab") {
+      if (!this.gitlabApi) return [];
+      const token = await this.authModule.getGitlabTokenForUser(userId);
+      const projects = await this.gitlabApi.listUserProjects(token);
+      return projects.map((p) => ({ provider: "gitlab" as const, providerRepo: p.pathWithNamespace }));
+    }
+
+    return [];
   }
 
   getProviderInstallUrl(provider: SourceProvider): string | null {

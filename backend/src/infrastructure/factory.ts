@@ -12,7 +12,7 @@ import { DiscordOAuthService } from "./auth/discord-oauth.js";
 import { SlackOAuthService } from "./auth/slack-oauth.js";
 import { GitLabOAuthService } from "./auth/gitlab-oauth.js";
 import { GitLabApiClient } from "./auth/gitlab-api.js";
-import { TotpCryptoService } from "./auth/totp-crypto.js";
+import { CryptoService } from "./auth/crypto.js";
 import { RateLimiter } from "./rate-limiter/rate-limiter.js";
 import { AppLogger } from "./logger/logger.js";
 
@@ -28,7 +28,7 @@ export class InfrastructureFactory {
   readonly gitlabApi: GitLabApiClient;
   readonly discordOAuth: DiscordOAuthService;
   readonly slackOAuth: SlackOAuthService;
-  readonly totpCrypto: TotpCryptoService;
+  readonly crypto: CryptoService;
   readonly rateLimiter: RateLimiter;
 
   constructor(config: Config) {
@@ -69,7 +69,7 @@ export class InfrastructureFactory {
       config.slackClientSecret,
       config.slackCallbackUrl,
     );
-    this.totpCrypto = new TotpCryptoService(config.jwtSecret);
+    this.crypto = new CryptoService(config.jwtSecret);
     this.rateLimiter = new RateLimiter(this.redis);
   }
 }

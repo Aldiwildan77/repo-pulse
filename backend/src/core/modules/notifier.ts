@@ -3,7 +3,6 @@ import type { PrMessageRepository } from "../repositories/pr-message.repository.
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
 import type { UserBindingRepository } from "../repositories/user-binding.repository.js";
 import type { WebhookEventRepository } from "../repositories/webhook-event.repository.js";
-import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
 import type { NotifierLogRepository } from "../repositories/notifier-log.repository.js";
 import type { Platform, RepoConfig } from "../entities/index.js";
 import type { Pusher } from "./pusher/pusher.interface.js";
@@ -80,7 +79,6 @@ export class NotifierModule {
     private readonly repoConfigRepo: RepoConfigRepository,
     private readonly userBindingRepo: UserBindingRepository,
     private readonly webhookEventRepo: WebhookEventRepository,
-    private readonly connectedRepoRepo: ConnectedRepoRepository,
     private readonly notifierLogRepo: NotifierLogRepository,
     private readonly pushers: Map<Platform, Pusher>,
     private readonly logger: AppLogger,
@@ -528,43 +526,16 @@ export class NotifierModule {
     }
   }
 
-  async handleInstallationCreated(event: InstallationCreatedEvent): Promise<void> {
-    if (event.repos.length === 0) return;
-
-    await this.connectedRepoRepo.addRepos(
-      event.repos.map((repo) => ({
-        provider: event.provider,
-        providerInstallationId: event.installationId,
-        providerRepo: repo,
-        connectedBy: event.senderUserId,
-      })),
-    );
+  async handleInstallationCreated(_event: InstallationCreatedEvent): Promise<void> {
+    // No-op: repos are fetched directly from provider APIs
   }
 
-  async handleInstallationDeleted(event: InstallationDeletedEvent): Promise<void> {
-    await this.connectedRepoRepo.removeByInstallation(event.provider, event.installationId);
+  async handleInstallationDeleted(_event: InstallationDeletedEvent): Promise<void> {
+    // No-op: repos are fetched directly from provider APIs
   }
 
-  async handleInstallationReposChanged(event: InstallationReposChangedEvent): Promise<void> {
-    if (event.added.length > 0) {
-      await this.connectedRepoRepo.addRepos(
-        event.added.map((repo) => ({
-          provider: event.provider,
-          providerInstallationId: event.installationId,
-          providerRepo: repo,
-          connectedBy: event.senderUserId,
-        })),
-      );
-    }
-
-    if (event.removed.length > 0) {
-      await this.connectedRepoRepo.removeRepos(
-        event.removed.map((repo) => ({
-          provider: event.provider,
-          providerRepo: repo,
-        })),
-      );
-    }
+  async handleInstallationReposChanged(_event: InstallationReposChangedEvent): Promise<void> {
+    // No-op: repos are fetched directly from provider APIs
   }
 
   async recordEvent(eventId: string, eventType: string): Promise<void> {

@@ -3,7 +3,7 @@ import { generateSecret, generateURI, verifySync } from "otplib";
 import * as QRCode from "qrcode";
 import bcrypt from "bcrypt";
 import type { UserTotpRepository } from "../repositories/user-totp.repository.js";
-import type { TotpCryptoService } from "../../infrastructure/auth/totp-crypto.js";
+import type { CryptoService } from "../../infrastructure/auth/crypto.js";
 import type { JwtService } from "../../infrastructure/auth/jwt.js";
 
 const BACKUP_CODE_COUNT = 10;
@@ -13,7 +13,7 @@ const TOTP_ISSUER = "RepoPulse";
 export class TotpModule {
   constructor(
     private readonly userTotpRepo: UserTotpRepository,
-    private readonly totpCrypto: TotpCryptoService,
+    private readonly cryptoService: CryptoService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -30,7 +30,7 @@ export class TotpModule {
     await this.userTotpRepo.deleteByUserId(userId);
 
     const secret = generateSecret();
-    const encryptedSecret = this.totpCrypto.encrypt(secret);
+    const encryptedSecret = this.cryptoService.encrypt(secret);
 
     // Generate backup codes
     const backupCodes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
@@ -60,7 +60,7 @@ export class TotpModule {
     const record = await this.userTotpRepo.findByUserId(userId);
     if (!record || record.isEnabled) return false;
 
-    const secret = this.totpCrypto.decrypt(record.totpSecretEncrypted);
+    const secret = this.cryptoService.decrypt(record.totpSecretEncrypted);
     const result = verifySync({ secret, token: code });
     if (!result.valid) return false;
 
@@ -73,7 +73,7 @@ export class TotpModule {
     if (!record || !record.isEnabled) return false;
 
     // Try TOTP code first
-    const secret = this.totpCrypto.decrypt(record.totpSecretEncrypted);
+    const secret = this.cryptoService.decrypt(record.totpSecretEncrypted);
     const result = verifySync({ secret, token: code });
     if (result.valid) return true;
 

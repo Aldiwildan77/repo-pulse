@@ -56,12 +56,9 @@ export function SourceStepContent({
     repos: connectedRepos,
     isLoading: reposLoading,
     refetch: refetchRepos,
-  } = useConnectedRepos();
+  } = useConnectedRepos(values.provider);
 
-  const filteredRepos = useMemo(
-    () => connectedRepos.filter((r) => r.provider === values.provider),
-    [connectedRepos, values.provider],
-  );
+  const filteredRepos = connectedRepos;
 
   const handleProviderChange = (provider: SourceProvider) => {
     setValues((prev) => ({ ...prev, provider, providerRepo: '' }));

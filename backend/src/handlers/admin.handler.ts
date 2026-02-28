@@ -274,21 +274,21 @@ export class AdminHandler {
   }
 
   private async getConnectedRepos(
-    request: FastifyRequest,
+    request: FastifyRequest<{
+      Querystring: { provider?: string };
+    }>,
     reply: FastifyReply,
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
+    const provider = ((request.query as Record<string, string>).provider ?? "github") as SourceProvider;
 
-    const identities = await this.auth.getIdentities(userId);
-    const githubIdentity = identities.find((i) => i.provider === "github");
-
-    if (!githubIdentity) {
+    try {
+      const repos = await this.admin.getProviderRepos(userId, provider);
+      reply.send(repos);
+    } catch {
+      // User may not have bound this provider — return empty list
       reply.send([]);
-      return;
     }
-
-    const repos = await this.admin.getConnectedRepos(githubIdentity.providerUserId);
-    reply.send(repos);
   }
 
   private async getDiscordGuilds(

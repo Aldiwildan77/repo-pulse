@@ -6,7 +6,7 @@ import type { GoogleOAuthService } from "../../infrastructure/auth/google-oauth.
 import type { GitLabOAuthService } from "../../infrastructure/auth/gitlab-oauth.js";
 import type { DiscordOAuthService } from "../../infrastructure/auth/discord-oauth.js";
 import type { SlackOAuthService } from "../../infrastructure/auth/slack-oauth.js";
-import type { TotpCryptoService } from "../../infrastructure/auth/totp-crypto.js";
+import type { CryptoService } from "../../infrastructure/auth/crypto.js";
 import type { KyselyAuthRepository } from "../../repositories/auth/auth.repo.js";
 import type { TotpModule } from "./totp.js";
 import type { UserBinding, UserIdentity } from "../entities/index.js";
@@ -41,7 +41,7 @@ export class AuthModule {
     private readonly slackOAuth: SlackOAuthService,
     private readonly jwt: JwtService,
     private readonly totpModule: TotpModule | null,
-    private readonly totpCrypto: TotpCryptoService,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   getAvailableLoginProviders(): string[] {
@@ -83,6 +83,7 @@ export class AuthModule {
         provider: "github",
         providerUserId: ghUser.id,
         providerUsername: ghUser.login,
+        accessTokenEncrypted: this.cryptoService.encrypt(oauthToken.accessToken),
       },
       existingUserId,
     );
@@ -127,8 +128,8 @@ export class AuthModule {
         providerUserId: gitlabUser.id,
         providerEmail: gitlabUser.email,
         providerUsername: gitlabUser.username,
-        accessTokenEncrypted: this.totpCrypto.encrypt(tokenResponse.access_token),
-        refreshTokenEncrypted: this.totpCrypto.encrypt(tokenResponse.refresh_token),
+        accessTokenEncrypted: this.cryptoService.encrypt(tokenResponse.access_token),
+        refreshTokenEncrypted: this.cryptoService.encrypt(tokenResponse.refresh_token),
         tokenExpiresAt: new Date(Date.now() + tokenResponse.expires_in * 1000),
       },
       existingUserId,
@@ -149,14 +150,14 @@ export class AuthModule {
     const bufferMs = 60_000; // 1 minute buffer
 
     if (identity.tokenExpiresAt && identity.tokenExpiresAt.getTime() - bufferMs > now.getTime()) {
-      return this.totpCrypto.decrypt(identity.accessTokenEncrypted);
+      return this.cryptoService.decrypt(identity.accessTokenEncrypted);
     }
 
-    const refreshToken = this.totpCrypto.decrypt(identity.refreshTokenEncrypted);
+    const refreshToken = this.cryptoService.decrypt(identity.refreshTokenEncrypted);
     const tokenResponse = await this.gitlabOAuth.refreshAccessToken(refreshToken);
 
-    const encryptedAccess = this.totpCrypto.encrypt(tokenResponse.access_token);
-    const encryptedRefresh = this.totpCrypto.encrypt(tokenResponse.refresh_token);
+    const encryptedAccess = this.cryptoService.encrypt(tokenResponse.access_token);
+    const encryptedRefresh = this.cryptoService.encrypt(tokenResponse.refresh_token);
     const tokenExpiresAt = new Date(Date.now() + tokenResponse.expires_in * 1000);
 
     await this.authRepo.updateIdentityTokens(
@@ -167,6 +168,15 @@ export class AuthModule {
     );
 
     return tokenResponse.access_token;
+  }
+
+  async getGithubTokenForUser(userId: number): Promise<string> {
+    const identity = await this.authRepo.findIdentityByUserId(userId, "github");
+    if (!identity || !identity.accessTokenEncrypted) {
+      throw new Error("User has no GitHub token. Please bind your GitHub account first.");
+    }
+
+    return this.cryptoService.decrypt(identity.accessTokenEncrypted);
   }
 
   async handleDiscordCallback(code: string, userId: number): Promise<void> {

@@ -3,7 +3,7 @@ export type { UserBinding } from "./user-binding.js";
 export type { UserIdentity } from "./user-identity.js";
 export type { RepoConfig, RepoEventToggle } from "./repo-config.js";
 export type { WebhookEvent } from "./webhook-event.js";
-export type { ConnectedRepo } from "./connected-repo.js";
+
 export type { UserTotp } from "./user-totp.js";
 export type { NotifierLog } from "./notifier-log.js";
 export type { Feedback } from "./feedback.js";
