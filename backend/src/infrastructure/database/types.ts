@@ -6,6 +6,7 @@ export interface Database {
   user_identities: UserIdentityTable;
   user_totp: UserTotpTable;
   repo_configs: RepoConfigTable;
+  repo_event_toggles: RepoEventToggleTable;
   webhook_events: WebhookEventTable;
   connected_repos: ConnectedRepoTable;
 }
@@ -62,12 +63,6 @@ export interface RepoConfigTable {
   platform: "discord" | "slack";
   channel_id: string;
   is_active: Generated<boolean>;
-  notify_pr_opened: Generated<boolean>;
-  notify_pr_merged: Generated<boolean>;
-  notify_pr_label: Generated<boolean>;
-  notify_comment: Generated<boolean>;
-  notify_issue_opened: Generated<boolean>;
-  notify_issue_closed: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -75,6 +70,18 @@ export interface RepoConfigTable {
 export type RepoConfigRow = Selectable<RepoConfigTable>;
 export type NewRepoConfigRow = Insertable<RepoConfigTable>;
 export type RepoConfigUpdate = Updateable<RepoConfigTable>;
+
+export interface RepoEventToggleTable {
+  id: Generated<number>;
+  repo_config_id: number;
+  event_type: string;
+  is_enabled: Generated<boolean>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type RepoEventToggleRow = Selectable<RepoEventToggleTable>;
+export type NewRepoEventToggleRow = Insertable<RepoEventToggleTable>;
 
 export interface WebhookEventTable {
   id: Generated<number>;

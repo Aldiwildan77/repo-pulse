@@ -8,12 +8,15 @@ export interface RepoConfig {
   platform: Platform;
   channelId: string;
   isActive: boolean;
-  notifyPrOpened: boolean;
-  notifyPrMerged: boolean;
-  notifyPrLabel: boolean;
-  notifyComment: boolean;
-  notifyIssueOpened: boolean;
-  notifyIssueClosed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RepoEventToggle {
+  id: number;
+  repoConfigId: number;
+  eventType: string;
+  isEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

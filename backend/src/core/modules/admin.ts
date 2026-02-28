@@ -1,7 +1,7 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
-import type { Platform, RepoConfig, ConnectedRepo } from "../entities/index.js";
+import type { Platform, RepoConfig, RepoEventToggle, ConnectedRepo } from "../entities/index.js";
 import type { SourceProvider } from "../webhook/webhook-provider.js";
 import type { Pusher, Guild, Channel } from "./pusher/pusher.interface.js";
 
@@ -37,18 +37,20 @@ export class AdminModule {
   async updateRepoConfig(id: number, data: {
     channelId?: string;
     isActive?: boolean;
-    notifyPrOpened?: boolean;
-    notifyPrMerged?: boolean;
-    notifyPrLabel?: boolean;
-    notifyComment?: boolean;
-    notifyIssueOpened?: boolean;
-    notifyIssueClosed?: boolean;
   }): Promise<void> {
     return this.repoConfigRepo.update(id, data);
   }
 
   async deleteRepoConfig(id: number): Promise<void> {
     return this.repoConfigRepo.delete(id);
+  }
+
+  async getEventToggles(repoConfigId: number): Promise<RepoEventToggle[]> {
+    return this.repoConfigRepo.getEventToggles(repoConfigId);
+  }
+
+  async upsertEventToggle(repoConfigId: number, eventType: string, isEnabled: boolean): Promise<void> {
+    return this.repoConfigRepo.upsertEventToggle(repoConfigId, eventType, isEnabled);
   }
 
   async getConnectedRepos(userId: string): Promise<ConnectedRepo[]> {
@@ -84,8 +86,6 @@ export class AdminModule {
 
   getDiscordBotInviteUrl(): string {
     const clientId = this.config.discordClientId;
-    // Permissions: Send Messages (2048) + Add Reactions (64) + Read Message History (65536) = 67648
-    // Plus View Channels (1024) = 68672 — but the plan says 2147534848 which includes broader perms
     return `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=2147534848&scope=bot`;
   }
 }

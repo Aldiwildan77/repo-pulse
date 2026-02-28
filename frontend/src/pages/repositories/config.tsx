@@ -49,7 +49,7 @@ export function RepositoryConfigPage() {
 
   if (isEditing && isLoading) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Card>
           <CardContent className="space-y-4 pt-6">
@@ -63,7 +63,7 @@ export function RepositoryConfigPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Button
           variant="ghost"

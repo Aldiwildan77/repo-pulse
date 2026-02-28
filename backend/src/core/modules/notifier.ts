@@ -4,7 +4,7 @@ import type { RepoConfigRepository } from "../repositories/repo-config.repositor
 import type { UserBindingRepository } from "../repositories/user-binding.repository.js";
 import type { WebhookEventRepository } from "../repositories/webhook-event.repository.js";
 import type { ConnectedRepoRepository } from "../repositories/connected-repo.repository.js";
-import type { Platform } from "../entities/index.js";
+import type { Platform, RepoConfig } from "../entities/index.js";
 import type { Pusher } from "./pusher/pusher.interface.js";
 import type { AppLogger } from "../../infrastructure/logger/logger.js";
 import type {
@@ -75,6 +75,10 @@ export class NotifierModule {
     private readonly logger: AppLogger,
   ) {}
 
+  private async isEventEnabled(cfg: RepoConfig, eventType: string): Promise<boolean> {
+    return this.repoConfigRepo.isEventEnabled(cfg.id, eventType);
+  }
+
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
 
@@ -87,7 +91,7 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!cfg.notifyPrOpened) continue;
+      if (!(await this.isEventEnabled(cfg, "pr_opened"))) continue;
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -144,7 +148,7 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!cfg.notifyPrLabel) continue;
+      if (!(await this.isEventEnabled(cfg, "pr_label"))) continue;
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -187,9 +191,13 @@ export class NotifierModule {
 
   async handlePrClosed(event: PrClosedEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
-    const enabledPlatforms = new Set(
-      configs.filter((c) => c.notifyPrMerged).map((c) => c.platform),
-    );
+
+    const enabledPlatforms = new Set<Platform>();
+    for (const c of configs) {
+      if (await this.isEventEnabled(c, "pr_merged")) {
+        enabledPlatforms.add(c.platform);
+      }
+    }
 
     const messages = await this.prMessageRepo.findByPrAndRepo(event.prId, event.repo);
     const emoji = event.merged ? "\u2705" : "\u274C";
@@ -228,9 +236,13 @@ export class NotifierModule {
     if (event.mentionedUsernames.length === 0) return;
 
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
-    const enabledPlatforms = new Set(
-      configs.filter((c) => c.notifyComment).map((c) => c.platform),
-    );
+
+    const enabledPlatforms = new Set<Platform>();
+    for (const c of configs) {
+      if (await this.isEventEnabled(c, "comment")) {
+        enabledPlatforms.add(c.platform);
+      }
+    }
 
     if (enabledPlatforms.size === 0) return;
 
@@ -246,7 +258,6 @@ export class NotifierModule {
     };
 
     for (const binding of bindings) {
-      // Send to Discord if bound and enabled
       if (binding.discordUserId && enabledPlatforms.has("discord")) {
         const pusher = this.pushers.get("discord");
         if (pusher) {
@@ -254,7 +265,6 @@ export class NotifierModule {
         }
       }
 
-      // Send to Slack if bound and enabled
       if (binding.slackUserId && enabledPlatforms.has("slack")) {
         const pusher = this.pushers.get("slack");
         if (pusher) {
@@ -276,7 +286,7 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!cfg.notifyIssueOpened) continue;
+      if (!(await this.isEventEnabled(cfg, "issue_opened"))) continue;
 
       try {
         const pusher = this.pushers.get(cfg.platform);
@@ -326,7 +336,7 @@ export class NotifierModule {
     }
 
     for (const cfg of configs) {
-      if (!cfg.notifyIssueClosed) continue;
+      if (!(await this.isEventEnabled(cfg, "issue_closed"))) continue;
 
       try {
         const pusher = this.pushers.get(cfg.platform);

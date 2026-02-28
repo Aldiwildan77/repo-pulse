@@ -1,5 +1,5 @@
-import type { RepoConfig } from "../../core/entities/index.js";
-import type { RepoConfigRow } from "../../infrastructure/database/types.js";
+import type { RepoConfig, RepoEventToggle } from "../../core/entities/index.js";
+import type { RepoConfigRow, RepoEventToggleRow } from "../../infrastructure/database/types.js";
 
 export function toRepoConfig(row: RepoConfigRow): RepoConfig {
   return {
@@ -9,12 +9,17 @@ export function toRepoConfig(row: RepoConfigRow): RepoConfig {
     platform: row.platform,
     channelId: row.channel_id,
     isActive: row.is_active,
-    notifyPrOpened: row.notify_pr_opened,
-    notifyPrMerged: row.notify_pr_merged,
-    notifyPrLabel: row.notify_pr_label,
-    notifyComment: row.notify_comment,
-    notifyIssueOpened: row.notify_issue_opened,
-    notifyIssueClosed: row.notify_issue_closed,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function toRepoEventToggle(row: RepoEventToggleRow): RepoEventToggle {
+  return {
+    id: row.id,
+    repoConfigId: row.repo_config_id,
+    eventType: row.event_type,
+    isEnabled: row.is_enabled,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

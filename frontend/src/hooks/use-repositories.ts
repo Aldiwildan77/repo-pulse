@@ -11,14 +11,15 @@ export interface RepoConfig {
   platform: Platform;
   channelId: string;
   isActive: boolean;
-  notifyPrOpened: boolean;
-  notifyPrMerged: boolean;
-  notifyPrLabel: boolean;
-  notifyComment: boolean;
-  notifyIssueOpened: boolean;
-  notifyIssueClosed: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RepoEventToggle {
+  id: number;
+  repoConfigId: number;
+  eventType: string;
+  isEnabled: boolean;
 }
 
 export interface RepoConfigInput {
@@ -49,12 +50,6 @@ export function useRepositoryMutations() {
     async (id: number, input: {
       channelId?: string;
       isActive?: boolean;
-      notifyPrOpened?: boolean;
-      notifyPrMerged?: boolean;
-      notifyPrLabel?: boolean;
-      notifyComment?: boolean;
-      notifyIssueOpened?: boolean;
-      notifyIssueClosed?: boolean;
     }) => {
       await apiClient(`/api/repos/config/${id}`, {
         method: "PATCH",
@@ -78,5 +73,16 @@ export function useRepositoryMutations() {
     toast.success(isActive ? "Repository activated" : "Repository deactivated");
   }, []);
 
-  return { create, update, remove, toggleActive };
+  const getEventToggles = useCallback(async (id: number) => {
+    return apiClient<RepoEventToggle[]>(`/api/repos/config/${id}/toggles`);
+  }, []);
+
+  const upsertEventToggle = useCallback(async (id: number, eventType: string, isEnabled: boolean) => {
+    await apiClient(`/api/repos/config/${id}/toggles`, {
+      method: "PUT",
+      body: JSON.stringify({ eventType, isEnabled }),
+    });
+  }, []);
+
+  return { create, update, remove, toggleActive, getEventToggles, upsertEventToggle };
 }

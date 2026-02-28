@@ -1,7 +1,7 @@
 export type { PrMessage, Platform, PrStatus } from "./pr-message.js";
 export type { UserBinding } from "./user-binding.js";
 export type { UserIdentity } from "./user-identity.js";
-export type { RepoConfig } from "./repo-config.js";
+export type { RepoConfig, RepoEventToggle } from "./repo-config.js";
 export type { WebhookEvent } from "./webhook-event.js";
 export type { ConnectedRepo } from "./connected-repo.js";
 export type { UserTotp } from "./user-totp.js";

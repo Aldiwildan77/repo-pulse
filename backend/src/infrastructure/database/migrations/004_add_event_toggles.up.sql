@@ -1,7 +1,9 @@
-ALTER TABLE repo_configs
-  ADD COLUMN notify_pr_opened BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN notify_pr_merged BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN notify_pr_label BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN notify_comment BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN notify_issue_opened BOOLEAN NOT NULL DEFAULT TRUE,
-  ADD COLUMN notify_issue_closed BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE TABLE IF NOT EXISTS repo_event_toggles (
+    id SERIAL PRIMARY KEY,
+    repo_config_id INTEGER NOT NULL REFERENCES repo_configs(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (repo_config_id, event_type)
+);

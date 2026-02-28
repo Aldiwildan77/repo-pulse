@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,38 +17,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
 import { RepoStatusBadge } from "./repo-status-badge";
+import { NotificationSettingsModal } from "./notification-settings-modal";
 import type { RepoConfig } from "@/hooks/use-repositories";
-
-interface EventToggleKey {
-  key: keyof Pick<RepoConfig, "notifyPrOpened" | "notifyPrMerged" | "notifyPrLabel" | "notifyComment" | "notifyIssueOpened" | "notifyIssueClosed">;
-  label: string;
-}
-
-const EVENT_TOGGLES: EventToggleKey[] = [
-  { key: "notifyPrOpened", label: "PR Opened" },
-  { key: "notifyPrMerged", label: "PR Merged/Closed" },
-  { key: "notifyPrLabel", label: "PR Label" },
-  { key: "notifyComment", label: "Mentions" },
-  { key: "notifyIssueOpened", label: "Issue Opened" },
-  { key: "notifyIssueClosed", label: "Issue Closed" },
-];
 
 interface RepoListProps {
   repositories: RepoConfig[];
   onToggleActive: (id: number, isActive: boolean) => Promise<void>;
-  onToggleEvent: (id: number, field: string, value: boolean) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }
 
 export function RepoList({
   repositories,
   onToggleActive,
-  onToggleEvent,
   onDelete,
 }: RepoListProps) {
   const navigate = useNavigate();
+  const [notifModal, setNotifModal] = useState<{ id: number; name: string } | null>(null);
 
   if (repositories.length === 0) {
     return (
@@ -65,20 +51,20 @@ export function RepoList({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Repository</TableHead>
-          <TableHead>Provider</TableHead>
-          <TableHead>Platform</TableHead>
-          <TableHead>Channel ID</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-12" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {repositories.map((repo) => (
-          <>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Repository</TableHead>
+            <TableHead>Provider</TableHead>
+            <TableHead>Platform</TableHead>
+            <TableHead>Channel ID</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-12" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {repositories.map((repo) => (
             <TableRow key={repo.id}>
               <TableCell className="font-medium">
                 {repo.providerRepo}
@@ -107,6 +93,14 @@ export function RepoList({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
+                      onClick={() =>
+                        setNotifModal({ id: repo.id, name: repo.providerRepo })
+                      }
+                    >
+                      <Bell className="mr-2 h-4 w-4" />
+                      Notification Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onClick={() => navigate(`/repositories/${repo.id}/edit`)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
@@ -123,33 +117,18 @@ export function RepoList({
                 </DropdownMenu>
               </TableCell>
             </TableRow>
-            <TableRow key={`${repo.id}-events`}>
-              <TableCell colSpan={6} className="py-2 px-4">
-                <div className="flex flex-wrap gap-4">
-                  {EVENT_TOGGLES.map((toggle) => (
-                    <label
-                      key={toggle.key}
-                      className="flex items-center gap-1.5"
-                    >
-                      <Switch
-                        size="sm"
-                        checked={repo[toggle.key]}
-                        onCheckedChange={(checked: boolean) =>
-                          onToggleEvent(repo.id, toggle.key, checked)
-                        }
-                        disabled={!repo.isActive}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {toggle.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </TableCell>
-            </TableRow>
-          </>
-        ))}
-      </TableBody>
-    </Table>
+          ))}
+        </TableBody>
+      </Table>
+
+      <NotificationSettingsModal
+        repoConfigId={notifModal?.id ?? null}
+        repoName={notifModal?.name ?? ""}
+        open={!!notifModal}
+        onOpenChange={(open) => {
+          if (!open) setNotifModal(null);
+        }}
+      />
+    </>
   );
 }

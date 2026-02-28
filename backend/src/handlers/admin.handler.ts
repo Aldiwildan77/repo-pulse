@@ -43,6 +43,16 @@ export class AdminHandler {
       handler: this.deleteConfig.bind(this),
     });
 
+    app.get<{ Params: { id: string } }>("/api/repos/config/:id/toggles", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.getEventToggles.bind(this),
+    });
+
+    app.put("/api/repos/config/:id/toggles", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.upsertEventToggle.bind(this),
+    });
+
     app.get<{ Params: { provider: string } }>("/api/providers/:provider/install", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getProviderInstallUrl.bind(this),
@@ -121,12 +131,6 @@ export class AdminHandler {
       Body: {
         channelId?: string;
         isActive?: boolean;
-        notifyPrOpened?: boolean;
-        notifyPrMerged?: boolean;
-        notifyPrLabel?: boolean;
-        notifyComment?: boolean;
-        notifyIssueOpened?: boolean;
-        notifyIssueClosed?: boolean;
       };
     }>,
     reply: FastifyReply,
@@ -142,6 +146,28 @@ export class AdminHandler {
   ): Promise<void> {
     const id = parseInt(request.params.id, 10);
     await this.admin.deleteRepoConfig(id);
+    reply.code(204).send();
+  }
+
+  private async getEventToggles(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const id = parseInt(request.params.id, 10);
+    const toggles = await this.admin.getEventToggles(id);
+    reply.send(toggles);
+  }
+
+  private async upsertEventToggle(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: { eventType: string; isEnabled: boolean };
+    }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const id = parseInt(request.params.id, 10);
+    const { eventType, isEnabled } = request.body;
+    await this.admin.upsertEventToggle(id, eventType, isEnabled);
     reply.code(204).send();
   }
 
@@ -166,7 +192,6 @@ export class AdminHandler {
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
 
-    // Look up user's GitHub identity to query connected_repos
     const identities = await this.auth.getIdentities(userId);
     const githubIdentity = identities.find((i) => i.provider === "github");
 

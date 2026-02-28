@@ -1,8 +1,8 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../../infrastructure/database/types.js";
 import type { RepoConfigRepository } from "../../core/repositories/repo-config.repository.js";
-import type { Platform, RepoConfig, SourceProvider } from "../../core/entities/index.js";
-import { toRepoConfig } from "./dto.js";
+import type { Platform, RepoConfig, RepoEventToggle, SourceProvider } from "../../core/entities/index.js";
+import { toRepoConfig, toRepoEventToggle } from "./dto.js";
 
 export class KyselyRepoConfigRepository implements RepoConfigRepository {
   constructor(private readonly db: Kysely<Database>) {}
@@ -78,22 +78,10 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
   async update(id: number, data: {
     channelId?: string;
     isActive?: boolean;
-    notifyPrOpened?: boolean;
-    notifyPrMerged?: boolean;
-    notifyPrLabel?: boolean;
-    notifyComment?: boolean;
-    notifyIssueOpened?: boolean;
-    notifyIssueClosed?: boolean;
   }): Promise<void> {
     const updates: Record<string, unknown> = { updated_at: new Date() };
     if (data.channelId !== undefined) updates.channel_id = data.channelId;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
-    if (data.notifyPrOpened !== undefined) updates.notify_pr_opened = data.notifyPrOpened;
-    if (data.notifyPrMerged !== undefined) updates.notify_pr_merged = data.notifyPrMerged;
-    if (data.notifyPrLabel !== undefined) updates.notify_pr_label = data.notifyPrLabel;
-    if (data.notifyComment !== undefined) updates.notify_comment = data.notifyComment;
-    if (data.notifyIssueOpened !== undefined) updates.notify_issue_opened = data.notifyIssueOpened;
-    if (data.notifyIssueClosed !== undefined) updates.notify_issue_closed = data.notifyIssueClosed;
 
     await this.db
       .updateTable("repo_configs")
@@ -107,5 +95,44 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
       .deleteFrom("repo_configs")
       .where("id", "=", id)
       .execute();
+  }
+
+  async getEventToggles(repoConfigId: number): Promise<RepoEventToggle[]> {
+    const rows = await this.db
+      .selectFrom("repo_event_toggles")
+      .selectAll()
+      .where("repo_config_id", "=", repoConfigId)
+      .execute();
+
+    return rows.map(toRepoEventToggle);
+  }
+
+  async upsertEventToggle(repoConfigId: number, eventType: string, isEnabled: boolean): Promise<void> {
+    await this.db
+      .insertInto("repo_event_toggles")
+      .values({
+        repo_config_id: repoConfigId,
+        event_type: eventType,
+        is_enabled: isEnabled,
+      })
+      .onConflict((oc) =>
+        oc.columns(["repo_config_id", "event_type"]).doUpdateSet({
+          is_enabled: isEnabled,
+          updated_at: new Date(),
+        }),
+      )
+      .execute();
+  }
+
+  async isEventEnabled(repoConfigId: number, eventType: string): Promise<boolean> {
+    const row = await this.db
+      .selectFrom("repo_event_toggles")
+      .select("is_enabled")
+      .where("repo_config_id", "=", repoConfigId)
+      .where("event_type", "=", eventType)
+      .executeTakeFirst();
+
+    // Default to true if no row exists (opt-out model)
+    return row ? row.is_enabled : true;
   }
 }

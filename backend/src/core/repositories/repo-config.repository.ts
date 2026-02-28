@@ -1,4 +1,4 @@
-import type { Platform, RepoConfig, SourceProvider } from "../entities/index.js";
+import type { Platform, RepoConfig, RepoEventToggle, SourceProvider } from "../entities/index.js";
 
 export interface RepoConfigRepository {
   create(data: {
@@ -19,13 +19,13 @@ export interface RepoConfigRepository {
   update(id: number, data: {
     channelId?: string;
     isActive?: boolean;
-    notifyPrOpened?: boolean;
-    notifyPrMerged?: boolean;
-    notifyPrLabel?: boolean;
-    notifyComment?: boolean;
-    notifyIssueOpened?: boolean;
-    notifyIssueClosed?: boolean;
   }): Promise<void>;
 
   delete(id: number): Promise<void>;
+
+  getEventToggles(repoConfigId: number): Promise<RepoEventToggle[]>;
+
+  upsertEventToggle(repoConfigId: number, eventType: string, isEnabled: boolean): Promise<void>;
+
+  isEventEnabled(repoConfigId: number, eventType: string): Promise<boolean>;
 }
