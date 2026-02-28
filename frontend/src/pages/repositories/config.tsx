@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   useRepositoryMutations,
   type RepoConfigInput,
@@ -23,6 +23,12 @@ import { ArrowLeft } from "lucide-react";
 export function RepositoryConfigPage() {
   const { repoId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefillProvider = searchParams.get("provider");
+  const prefillRepo = searchParams.get("repo");
+  const prefilled = prefillProvider && prefillRepo
+    ? { provider: prefillProvider as RepoConfigInput["provider"], providerRepo: prefillRepo }
+    : undefined;
   const { data: repository, isLoading } = useApi<RepoConfig>(
     repoId ? `/api/repos/config/${repoId}` : null,
   );
@@ -36,6 +42,7 @@ export function RepositoryConfigPage() {
       if (isEditing && repoId) {
         await update(Number(repoId), {
           channelId: values.channelId,
+          tag: values.tag ?? null,
         });
       }
       navigate("/repositories");
@@ -100,6 +107,7 @@ export function RepositoryConfigPage() {
                       providerRepo: repository.providerRepo,
                       platform: repository.platform,
                       channelId: repository.channelId,
+                      tag: repository.tag,
                     }
                   : undefined
               }
@@ -109,7 +117,7 @@ export function RepositoryConfigPage() {
           </CardContent>
         </Card>
       ) : (
-        <RepoConfigWizard />
+        <RepoConfigWizard prefilled={prefilled} />
       )}
     </div>
   );

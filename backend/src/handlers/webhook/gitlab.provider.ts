@@ -55,6 +55,7 @@ export class GitLabWebhookProvider implements WebhookProvider {
     const action = attrs.action as string;
 
     if (action === "open") {
+      const mrLabels = (attrs.labels ?? []) as Array<Record<string, unknown>>;
       return {
         kind: "pr_opened",
         data: {
@@ -63,6 +64,7 @@ export class GitLabWebhookProvider implements WebhookProvider {
           title: attrs.title as string,
           author: user.username as string,
           url: attrs.url as string,
+          labels: mrLabels.map((l) => (l.title as string) ?? (l.name as string)),
         },
       };
     }

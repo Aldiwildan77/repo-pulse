@@ -67,6 +67,7 @@ export class GitHubWebhookProvider implements WebhookProvider {
     const repo = (payload.repository as Record<string, unknown>).full_name as string;
 
     if (action === "opened") {
+      const prLabels = (pr.labels ?? []) as Array<Record<string, unknown>>;
       return {
         kind: "pr_opened",
         data: {
@@ -75,6 +76,7 @@ export class GitHubWebhookProvider implements WebhookProvider {
           title: pr.title as string,
           author: (pr.user as Record<string, unknown>).login as string,
           url: pr.html_url as string,
+          labels: prLabels.map((l) => l.name as string),
         },
       };
     }

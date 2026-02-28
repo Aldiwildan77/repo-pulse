@@ -64,6 +64,7 @@ export class BitbucketWebhookProvider implements WebhookProvider {
         title: pr.title as string,
         author: author.nickname as string,
         url: htmlLink.href as string,
+        labels: [],
       },
     };
   }

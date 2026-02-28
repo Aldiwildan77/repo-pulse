@@ -20,6 +20,7 @@ export interface PrMessageTable {
   platform: "discord" | "slack";
   platform_message_id: string;
   platform_channel_id: string;
+  repo_config_id: number | null;
   status: Generated<"open" | "merged" | "closed">;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -68,6 +69,7 @@ export interface RepoConfigTable {
   provider_repo: string;
   platform: "discord" | "slack";
   channel_id: string;
+  tag: string | null;
   is_active: Generated<boolean>;
   webhook_id: string | null;
   webhook_created_by: number | null;

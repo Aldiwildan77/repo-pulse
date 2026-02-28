@@ -8,6 +8,7 @@ export interface PrMessage {
   platform: Platform;
   platformMessageId: string;
   platformChannelId: string;
+  repoConfigId: number | null;
   status: PrStatus;
   createdAt: Date;
   updatedAt: Date;

@@ -7,6 +7,7 @@ export interface PrMessageRepository {
     platform: Platform;
     platformMessageId: string;
     platformChannelId: string;
+    repoConfigId?: number | null;
   }): Promise<PrMessage>;
 
   findByPrAndRepo(providerPrId: number, providerRepo: string): Promise<PrMessage[]>;

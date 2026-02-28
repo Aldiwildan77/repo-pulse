@@ -9,6 +9,7 @@ export function toPrMessage(row: PrMessageRow): PrMessage {
     platform: row.platform,
     platformMessageId: row.platform_message_id,
     platformChannelId: row.platform_channel_id,
+    repoConfigId: row.repo_config_id ?? null,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

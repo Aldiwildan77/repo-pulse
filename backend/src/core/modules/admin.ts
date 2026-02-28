@@ -47,6 +47,7 @@ export class AdminModule {
     providerRepo: string;
     platform: Platform;
     channelId: string;
+    tag?: string | null;
   }): Promise<RepoConfig> {
     return this.repoConfigRepo.create(data);
   }
@@ -58,6 +59,7 @@ export class AdminModule {
   async updateRepoConfig(id: number, userId: number, data: {
     channelId?: string;
     isActive?: boolean;
+    tag?: string | null;
   }): Promise<void> {
     const config = await this.repoConfigRepo.findById(id);
     if (!config || config.userId !== userId) {

@@ -57,11 +57,22 @@ const STEP_DESCRIPTIONS = [
   "Select which events to notify on",
 ];
 
-export function RepoConfigWizard() {
+interface RepoConfigWizardProps {
+  prefilled?: {
+    provider: RepoConfigInput["provider"];
+    providerRepo: string;
+  };
+}
+
+export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const navigate = useNavigate();
   const { create, upsertEventToggle } = useRepositoryMutations();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [values, setValues] = useState<RepoConfigInput>({ ...defaultValues });
+  const initialStep = prefilled ? 1 : 0;
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [values, setValues] = useState<RepoConfigInput>(() => ({
+    ...defaultValues,
+    ...(prefilled ? { provider: prefilled.provider, providerRepo: prefilled.providerRepo } : {}),
+  }));
   const [eventToggles, setEventToggles] = useState<Record<string, boolean>>(
     () => Object.fromEntries(EVENT_TYPES.map((e) => [e.key, true])),
   );

@@ -19,6 +19,7 @@ export interface PrOpenedEvent {
   title: string;
   author: string;
   url: string;
+  labels: string[];
 }
 
 export interface PrClosedEvent {
@@ -84,6 +85,21 @@ export class NotifierModule {
     private readonly logger: AppLogger,
   ) {}
 
+  private filterConfigsByLabels(configs: RepoConfig[], labels: string[]): RepoConfig[] {
+    const notifyTags = labels
+      .filter((l) => l.startsWith("notify:"))
+      .map((l) => l.slice("notify:".length));
+
+    if (notifyTags.length === 0) {
+      // No notify labels → only default (untagged) configs
+      return configs.filter((c) => c.tag === null);
+    }
+
+    // Has notify labels → matching tagged configs + all default configs
+    const tagSet = new Set(notifyTags);
+    return configs.filter((c) => c.tag === null || tagSet.has(c.tag));
+  }
+
   private async isEventEnabled(cfg: RepoConfig, eventType: string): Promise<boolean> {
     return this.repoConfigRepo.isEventEnabled(cfg.id, eventType);
   }
@@ -110,7 +126,8 @@ export class NotifierModule {
   }
 
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
-    const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const allConfigs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const configs = this.filterConfigsByLabels(allConfigs, event.labels);
 
     if (configs.length === 0) {
       this.logger.warn("No active repo configs found for PR notification", {
@@ -149,6 +166,7 @@ export class NotifierModule {
           platform: cfg.platform,
           platformMessageId: messageId,
           platformChannelId: cfg.channelId,
+          repoConfigId: cfg.id,
         });
 
         await this.logEvent(cfg, "pr_opened", "sent", `PR #${event.prId} "${event.title}" by ${event.author}`);
@@ -235,11 +253,12 @@ export class NotifierModule {
 
   async handlePrClosed(event: PrClosedEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const configMap = new Map(configs.map((c) => [c.id, c]));
 
-    const enabledPlatforms = new Set<Platform>();
+    const enabledConfigIds = new Set<number>();
     for (const c of configs) {
       if (await this.isEventEnabled(c, "pr_merged")) {
-        enabledPlatforms.add(c.platform);
+        enabledConfigIds.add(c.id);
       }
     }
 
@@ -257,12 +276,10 @@ export class NotifierModule {
     }
 
     for (const msg of messages) {
-      const matchingCfg = configs.find((c) => c.platform === msg.platform);
+      const matchingCfg = msg.repoConfigId ? configMap.get(msg.repoConfigId) : configs.find((c) => c.platform === msg.platform);
 
-      if (!enabledPlatforms.has(msg.platform)) {
-        if (matchingCfg) {
-          await this.logEvent(matchingCfg, "pr_merged", "skipped", `PR #${event.prId} ${status} (disabled)`);
-        }
+      if (matchingCfg && !enabledConfigIds.has(matchingCfg.id)) {
+        await this.logEvent(matchingCfg, "pr_merged", "skipped", `PR #${event.prId} ${status} (disabled)`);
         continue;
       }
 
@@ -468,13 +485,14 @@ export class NotifierModule {
 
   async handlePrReview(event: PrReviewEvent): Promise<void> {
     const configs = await this.repoConfigRepo.findActiveByRepo(event.repo);
+    const configMap = new Map(configs.map((c) => [c.id, c]));
 
     const eventType = event.state === "approved" ? "pr_review_approved" : "pr_review_changes_requested";
 
-    const enabledPlatforms = new Set<Platform>();
+    const enabledConfigIds = new Set<number>();
     for (const c of configs) {
       if (await this.isEventEnabled(c, eventType)) {
-        enabledPlatforms.add(c.platform);
+        enabledConfigIds.add(c.id);
       }
     }
 
@@ -491,12 +509,10 @@ export class NotifierModule {
     }
 
     for (const msg of messages) {
-      const matchingCfg = configs.find((c) => c.platform === msg.platform);
+      const matchingCfg = msg.repoConfigId ? configMap.get(msg.repoConfigId) : configs.find((c) => c.platform === msg.platform);
 
-      if (!enabledPlatforms.has(msg.platform)) {
-        if (matchingCfg) {
-          await this.logEvent(matchingCfg, eventType, "skipped", `PR #${event.prId} review ${event.state} (disabled)`);
-        }
+      if (matchingCfg && !enabledConfigIds.has(matchingCfg.id)) {
+        await this.logEvent(matchingCfg, eventType, "skipped", `PR #${event.prId} review ${event.state} (disabled)`);
         continue;
       }
 

@@ -8,6 +8,7 @@ export interface RepoConfig {
   providerRepo: string;
   platform: Platform;
   channelId: string;
+  tag: string | null;
   isActive: boolean;
   webhookId: string | null;
   webhookCreatedBy: number | null;

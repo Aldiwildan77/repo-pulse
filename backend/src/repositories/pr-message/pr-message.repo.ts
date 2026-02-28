@@ -13,6 +13,7 @@ export class KyselyPrMessageRepository implements PrMessageRepository {
     platform: Platform;
     platformMessageId: string;
     platformChannelId: string;
+    repoConfigId?: number | null;
   }): Promise<PrMessage> {
     const row = await this.db
       .insertInto("pr_messages")
@@ -22,6 +23,7 @@ export class KyselyPrMessageRepository implements PrMessageRepository {
         platform: data.platform,
         platform_message_id: data.platformMessageId,
         platform_channel_id: data.platformChannelId,
+        repo_config_id: data.repoConfigId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

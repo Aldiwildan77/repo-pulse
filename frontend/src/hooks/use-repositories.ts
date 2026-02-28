@@ -10,6 +10,7 @@ export interface RepoConfig {
   providerRepo: string;
   platform: Platform;
   channelId: string;
+  tag: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +39,7 @@ export interface RepoConfigInput {
   providerRepo: string;
   platform: Platform;
   channelId: string;
+  tag?: string | null;
 }
 
 export function useRepositories(
@@ -95,6 +97,7 @@ export function useRepositoryMutations() {
     async (id: number, input: {
       channelId?: string;
       isActive?: boolean;
+      tag?: string | null;
     }) => {
       try {
         await apiClient(`/api/repos/config/${id}`, {

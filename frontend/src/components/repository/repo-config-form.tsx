@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { FormField } from '@/components/ui/form-field';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -328,6 +329,24 @@ export function NotificationStepContent({
             ))}
           </SelectContent>
         </Select>
+      </FormField>
+
+      <FormField
+        label='Channel Tag'
+        htmlFor='tag'
+        hint='Optional. PRs with a notify:<tag> label will be routed here. Leave empty for default (receives all).'
+      >
+        <Input
+          id='tag'
+          placeholder='e.g. alerts, reviews'
+          value={values.tag ?? ''}
+          onChange={(e) =>
+            setValues((prev) => ({
+              ...prev,
+              tag: e.target.value || null,
+            }))
+          }
+        />
       </FormField>
     </div>
   );

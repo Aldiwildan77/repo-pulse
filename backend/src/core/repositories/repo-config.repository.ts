@@ -7,6 +7,7 @@ export interface RepoConfigRepository {
     providerRepo: string;
     platform: Platform;
     channelId: string;
+    tag?: string | null;
   }): Promise<RepoConfig>;
 
   findById(id: number): Promise<RepoConfig | null>;
@@ -22,6 +23,7 @@ export interface RepoConfigRepository {
   update(id: number, data: {
     channelId?: string;
     isActive?: boolean;
+    tag?: string | null;
   }): Promise<void>;
 
   updateWebhookId(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void>;

@@ -13,6 +13,7 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     providerRepo: string;
     platform: Platform;
     channelId: string;
+    tag?: string | null;
   }): Promise<RepoConfig> {
     const row = await this.db
       .insertInto("repo_configs")
@@ -22,14 +23,8 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
         provider_repo: data.providerRepo,
         platform: data.platform,
         channel_id: data.channelId,
+        tag: data.tag ?? null,
       })
-      .onConflict((oc) =>
-        oc.columns(["user_id", "provider", "provider_repo", "platform"]).doUpdateSet({
-          channel_id: data.channelId,
-          is_active: true,
-          updated_at: new Date(),
-        }),
-      )
       .returningAll()
       .executeTakeFirstOrThrow();
 
@@ -104,10 +99,12 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
   async update(id: number, data: {
     channelId?: string;
     isActive?: boolean;
+    tag?: string | null;
   }): Promise<void> {
     const updates: Record<string, unknown> = { updated_at: new Date() };
     if (data.channelId !== undefined) updates.channel_id = data.channelId;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
+    if (data.tag !== undefined) updates.tag = data.tag;
 
     await this.db
       .updateTable("repo_configs")

@@ -8,6 +8,7 @@ import {
   ScrollText,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PlusCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,18 @@ export function RepoList({
 
   return (
     <>
+      {/* Add Channel button */}
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/repositories/new")}
+        >
+          <PlusCircle className="mr-1 h-4 w-4" />
+          Add Channel
+        </Button>
+      </div>
+
       {/* Desktop table */}
       <div className="hidden md:block">
         <Table>
@@ -88,6 +101,7 @@ export function RepoList({
               <TableHead>Provider</TableHead>
               <TableHead>Platform</TableHead>
               <TableHead>Channel ID</TableHead>
+              <TableHead>Tag</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12" />
             </TableRow>
@@ -106,6 +120,11 @@ export function RepoList({
                 </TableCell>
                 <TableCell className="font-mono text-sm">
                   {repo.channelId}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={repo.tag ? "default" : "secondary"} className="text-xs">
+                    {repo.tag ?? "default"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <RepoStatusBadge
@@ -186,6 +205,9 @@ export function RepoList({
                 </Badge>
                 <Badge variant="outline" className="text-xs">
                   {repo.platform}
+                </Badge>
+                <Badge variant={repo.tag ? "default" : "secondary"} className="text-xs">
+                  {repo.tag ?? "default"}
                 </Badge>
                 <span className="truncate font-mono text-xs text-muted-foreground">
                   #{repo.channelId}
