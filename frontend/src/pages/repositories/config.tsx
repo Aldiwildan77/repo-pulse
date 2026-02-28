@@ -7,6 +7,7 @@ import {
 } from "@/hooks/use-repositories";
 import { useApi } from "@/hooks/use-api";
 import { RepoConfigForm } from "@/components/repository/repo-config-form";
+import { RepoConfigWizard } from "@/components/repository/repo-config-wizard";
 import {
   Card,
   CardContent,
@@ -25,7 +26,7 @@ export function RepositoryConfigPage() {
   const { data: repository, isLoading } = useApi<RepoConfig>(
     repoId ? `/api/repos/config/${repoId}` : null,
   );
-  const { create, update } = useRepositoryMutations();
+  const { update } = useRepositoryMutations();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!repoId;
 
@@ -36,8 +37,6 @@ export function RepositoryConfigPage() {
         await update(Number(repoId), {
           channelId: values.channelId,
         });
-      } else {
-        await create(values);
       }
       navigate("/repositories");
     } catch {
@@ -84,32 +83,34 @@ export function RepositoryConfigPage() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {isEditing ? "Repository Settings" : "New Repository"}
-          </CardTitle>
-          <CardDescription>
-            Configure the repository and notification channel
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RepoConfigForm
-            initialValues={
-              repository
-                ? {
-                    provider: repository.provider,
-                    providerRepo: repository.providerRepo,
-                    platform: repository.platform,
-                    channelId: repository.channelId,
-                  }
-                : undefined
-            }
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
-        </CardContent>
-      </Card>
+      {isEditing ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Repository Settings</CardTitle>
+            <CardDescription>
+              Configure the repository and notification channel
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RepoConfigForm
+              initialValues={
+                repository
+                  ? {
+                      provider: repository.provider,
+                      providerRepo: repository.providerRepo,
+                      platform: repository.platform,
+                      channelId: repository.channelId,
+                    }
+                  : undefined
+              }
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <RepoConfigWizard />
+      )}
     </div>
   );
 }

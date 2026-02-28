@@ -25,6 +25,21 @@ export class SlackPusher implements Pusher {
             ].join("\n"),
           },
         },
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: { type: "plain_text", text: ":white_check_mark: Approve", emoji: true },
+              url: `${payload.url}/files#submit-review`,
+            },
+            {
+              type: "button",
+              text: { type: "plain_text", text: ":arrows_counterclockwise: Request Changes", emoji: true },
+              url: `${payload.url}/files#submit-review`,
+            },
+          ],
+        },
       ],
       text: `New PR: ${payload.title} by ${payload.author}`,
     });

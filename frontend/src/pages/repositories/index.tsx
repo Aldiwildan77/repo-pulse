@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { Plus } from "lucide-react";
 import {
@@ -16,8 +17,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 
+const PAGE_SIZE = 20;
+
 export function RepositoriesPage() {
-  const { repositories, isLoading, refetch } = useRepositories();
+  const [offset, setOffset] = useState(0);
+  const { repositories, total, isLoading, refetch } = useRepositories({
+    limit: PAGE_SIZE,
+    offset,
+  });
   const { toggleActive, remove } = useRepositoryMutations();
 
   const handleToggle = async (id: number, isActive: boolean) => {
@@ -28,6 +35,10 @@ export function RepositoriesPage() {
   const handleDelete = async (id: number) => {
     await remove(id);
     refetch();
+  };
+
+  const handlePageChange = (newOffset: number) => {
+    setOffset(newOffset);
   };
 
   return (
@@ -61,6 +72,10 @@ export function RepositoriesPage() {
           ) : (
             <RepoList
               repositories={repositories}
+              total={total}
+              offset={offset}
+              pageSize={PAGE_SIZE}
+              onPageChange={handlePageChange}
               onToggleActive={handleToggle}
               onDelete={handleDelete}
             />

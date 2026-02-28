@@ -40,11 +40,40 @@ export interface RepoConfigInput {
   channelId: string;
 }
 
-export function useRepositories() {
-  const { data, isLoading, error, refetch } =
-    useApi<RepoConfig[]>("/api/repos/config");
+export function useRepositories(
+  params?: { limit?: number; offset?: number },
+) {
+  const limit = params?.limit;
+  const offset = params?.offset;
+  const usePagination = limit !== undefined || offset !== undefined;
 
-  return { repositories: data ?? [], isLoading, error, refetch };
+  const url = usePagination
+    ? `/api/repos/config?limit=${limit ?? 20}&offset=${offset ?? 0}`
+    : "/api/repos/config";
+
+  const { data, isLoading, error, refetch } = useApi<
+    RepoConfig[] | { configs: RepoConfig[]; total: number }
+  >(url);
+
+  if (usePagination) {
+    const paginated = data as { configs: RepoConfig[]; total: number } | undefined;
+    return {
+      repositories: paginated?.configs ?? [],
+      total: paginated?.total ?? 0,
+      isLoading,
+      error,
+      refetch,
+    };
+  }
+
+  const list = data as RepoConfig[] | undefined;
+  return {
+    repositories: list ?? [],
+    total: (list ?? []).length,
+    isLoading,
+    error,
+    refetch,
+  };
 }
 
 export function useRepositoryMutations() {

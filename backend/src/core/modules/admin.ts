@@ -23,6 +23,10 @@ export class AdminModule {
     return this.repoConfigRepo.findAll();
   }
 
+  async getAllRepoConfigsPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
+    return this.repoConfigRepo.findAllPaginated(limit, offset);
+  }
+
   async createRepoConfig(data: {
     provider: SourceProvider;
     providerRepo: string;

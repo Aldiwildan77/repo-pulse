@@ -54,6 +54,27 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     return rows.map(toRepoConfig);
   }
 
+  async findAllPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
+    const [rows, countResult] = await Promise.all([
+      this.db
+        .selectFrom("repo_configs")
+        .selectAll()
+        .orderBy("created_at", "desc")
+        .limit(limit)
+        .offset(offset)
+        .execute(),
+      this.db
+        .selectFrom("repo_configs")
+        .select(this.db.fn.countAll().as("count"))
+        .executeTakeFirstOrThrow(),
+    ]);
+
+    return {
+      configs: rows.map(toRepoConfig),
+      total: Number(countResult.count),
+    };
+  }
+
   async findByRepo(providerRepo: string): Promise<RepoConfig[]> {
     const rows = await this.db
       .selectFrom("repo_configs")

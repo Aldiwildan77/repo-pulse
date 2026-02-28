@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Shield } from "lucide-react";
 import { apiClient } from "@/utils/api-client";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import {
 
 export function VerifyTotpPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +31,7 @@ export function VerifyTotpPage() {
         method: "POST",
         body: JSON.stringify({ code: code.trim() }),
       });
+      await refreshUser();
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");

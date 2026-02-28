@@ -1,4 +1,4 @@
-import { ChannelType, Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, Client, EmbedBuilder, GatewayIntentBits } from "discord.js";
 import type { Pusher, PrNotificationPayload, MentionNotificationPayload, LabelNotificationPayload, IssueNotificationPayload, ReviewNotificationPayload, Guild, Channel } from "./pusher.interface.js";
 
 export class DiscordPusher implements Pusher {
@@ -30,7 +30,20 @@ export class DiscordPusher implements Pusher {
       )
       .setColor(0x2f8b3a);
 
-    const message = await channel.send({ embeds: [embed] });
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel("Approve")
+        .setStyle(ButtonStyle.Link)
+        .setURL(`${payload.url}/files#submit-review`)
+        .setEmoji("\u2705"),
+      new ButtonBuilder()
+        .setLabel("Request Changes")
+        .setStyle(ButtonStyle.Link)
+        .setURL(`${payload.url}/files#submit-review`)
+        .setEmoji("\uD83D\uDD04"),
+    );
+
+    const message = await channel.send({ embeds: [embed], components: [row] });
     return message.id;
   }
 

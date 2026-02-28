@@ -90,9 +90,23 @@ export class AdminHandler {
   }
 
   private async getAllConfigs(
-    _request: FastifyRequest,
+    request: FastifyRequest<{
+      Querystring: { limit?: string; offset?: string };
+    }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const query = request.query as Record<string, string>;
+    const limitParam = query.limit;
+    const offsetParam = query.offset;
+
+    if (limitParam || offsetParam) {
+      const limit = Math.min(parseInt(limitParam ?? "20", 10), 100);
+      const offset = parseInt(offsetParam ?? "0", 10);
+      const result = await this.admin.getAllRepoConfigsPaginated(limit, offset);
+      reply.send(result);
+      return;
+    }
+
     const configs = await this.admin.getAllRepoConfigs();
     reply.send(configs);
   }

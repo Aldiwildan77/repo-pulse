@@ -12,6 +12,8 @@ export interface RepoConfigRepository {
 
   findAll(): Promise<RepoConfig[]>;
 
+  findAllPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }>;
+
   findByRepo(providerRepo: string): Promise<RepoConfig[]>;
 
   findActiveByRepo(providerRepo: string): Promise<RepoConfig[]>;
