@@ -113,7 +113,7 @@ export class AdminModule {
     if (provider === "github") {
       if (!this.githubApi) return [];
       const token = await this.authModule.getGithubTokenForUser(userId);
-      const repos = await this.githubApi.listUserInstallationRepos(token);
+      const repos = await this.githubApi.listUserRepos(token);
       return repos.map((r) => ({ provider: "github" as const, providerRepo: r.fullName }));
     }
 
