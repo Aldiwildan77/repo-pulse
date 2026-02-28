@@ -19,15 +19,16 @@ export class AdminModule {
     return this.repoConfigRepo.findById(id);
   }
 
-  async getAllRepoConfigs(): Promise<RepoConfig[]> {
-    return this.repoConfigRepo.findAll();
+  async getAllRepoConfigsByUser(userId: number): Promise<RepoConfig[]> {
+    return this.repoConfigRepo.findAllByUser(userId);
   }
 
-  async getAllRepoConfigsPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
-    return this.repoConfigRepo.findAllPaginated(limit, offset);
+  async getAllRepoConfigsByUserPaginated(userId: number, limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
+    return this.repoConfigRepo.findAllByUserPaginated(userId, limit, offset);
   }
 
   async createRepoConfig(data: {
+    userId: number;
     provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
@@ -40,10 +41,14 @@ export class AdminModule {
     return this.repoConfigRepo.findByRepo(providerRepo);
   }
 
-  async updateRepoConfig(id: number, data: {
+  async updateRepoConfig(id: number, userId: number, data: {
     channelId?: string;
     isActive?: boolean;
   }): Promise<void> {
+    const config = await this.repoConfigRepo.findById(id);
+    if (!config || config.userId !== userId) {
+      throw new Error("Config not found");
+    }
     return this.repoConfigRepo.update(id, data);
   }
 
@@ -51,23 +56,40 @@ export class AdminModule {
     return this.repoConfigRepo.updateWebhookId(id, webhookId, webhookCreatedBy);
   }
 
-  async deleteRepoConfig(id: number): Promise<void> {
+  async deleteRepoConfig(id: number, userId: number): Promise<void> {
+    const config = await this.repoConfigRepo.findById(id);
+    if (!config || config.userId !== userId) {
+      throw new Error("Config not found");
+    }
     return this.repoConfigRepo.delete(id);
   }
 
-  async getEventToggles(repoConfigId: number): Promise<RepoEventToggle[]> {
+  async getEventToggles(repoConfigId: number, userId: number): Promise<RepoEventToggle[]> {
+    const config = await this.repoConfigRepo.findById(repoConfigId);
+    if (!config || config.userId !== userId) {
+      throw new Error("Config not found");
+    }
     return this.repoConfigRepo.getEventToggles(repoConfigId);
   }
 
-  async upsertEventToggle(repoConfigId: number, eventType: string, isEnabled: boolean): Promise<void> {
+  async upsertEventToggle(repoConfigId: number, userId: number, eventType: string, isEnabled: boolean): Promise<void> {
+    const config = await this.repoConfigRepo.findById(repoConfigId);
+    if (!config || config.userId !== userId) {
+      throw new Error("Config not found");
+    }
     return this.repoConfigRepo.upsertEventToggle(repoConfigId, eventType, isEnabled);
   }
 
   async getNotifierLogs(
     repoConfigId: number,
+    userId: number,
     limit: number,
     offset: number,
   ): Promise<{ logs: NotifierLog[]; total: number }> {
+    const config = await this.repoConfigRepo.findById(repoConfigId);
+    if (!config || config.userId !== userId) {
+      throw new Error("Config not found");
+    }
     return this.notifierLogRepo.findByRepoConfig(repoConfigId, limit, offset);
   }
 

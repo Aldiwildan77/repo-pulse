@@ -99,6 +99,7 @@ export class AdminHandler {
     }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const query = request.query as Record<string, string>;
     const limitParam = query.limit;
     const offsetParam = query.offset;
@@ -106,12 +107,12 @@ export class AdminHandler {
     if (limitParam || offsetParam) {
       const limit = Math.min(parseInt(limitParam ?? "20", 10), 100);
       const offset = parseInt(offsetParam ?? "0", 10);
-      const result = await this.admin.getAllRepoConfigsPaginated(limit, offset);
+      const result = await this.admin.getAllRepoConfigsByUserPaginated(userId, limit, offset);
       reply.send(result);
       return;
     }
 
-    const configs = await this.admin.getAllRepoConfigs();
+    const configs = await this.admin.getAllRepoConfigsByUser(userId);
     reply.send(configs);
   }
 
@@ -124,7 +125,7 @@ export class AdminHandler {
     const { provider, providerRepo, platform, channelId } = request.body;
     const userId = parseInt(request.userId!, 10);
 
-    const config = await this.admin.createRepoConfig({ provider, providerRepo, platform, channelId });
+    const config = await this.admin.createRepoConfig({ userId, provider, providerRepo, platform, channelId });
 
     if (provider === "gitlab" && this.config.gitlabWebhookSecret) {
       try {
@@ -161,9 +162,10 @@ export class AdminHandler {
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const id = parseInt(request.params.id, 10);
     const config = await this.admin.getRepoConfigById(id);
-    if (!config) {
+    if (!config || config.userId !== userId) {
       reply.code(404).send({ error: "Config not found" });
       return;
     }
@@ -180,8 +182,9 @@ export class AdminHandler {
     }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const id = parseInt(request.params.id, 10);
-    await this.admin.updateRepoConfig(id, request.body);
+    await this.admin.updateRepoConfig(id, userId, request.body);
     reply.code(204).send();
   }
 
@@ -193,8 +196,12 @@ export class AdminHandler {
     const userId = parseInt(request.userId!, 10);
 
     const config = await this.admin.getRepoConfigById(id);
+    if (!config || config.userId !== userId) {
+      reply.code(404).send({ error: "Config not found" });
+      return;
+    }
 
-    if (config?.webhookId && config.provider === "gitlab" && config.webhookCreatedBy) {
+    if (config.webhookId && config.provider === "gitlab" && config.webhookCreatedBy) {
       try {
         const tokenUserId = config.webhookCreatedBy ?? userId;
         const accessToken = await this.auth.getGitlabTokenForUser(tokenUserId);
@@ -208,7 +215,7 @@ export class AdminHandler {
       }
     }
 
-    await this.admin.deleteRepoConfig(id);
+    await this.admin.deleteRepoConfig(id, userId);
     reply.code(204).send();
   }
 
@@ -216,8 +223,9 @@ export class AdminHandler {
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const id = parseInt(request.params.id, 10);
-    const toggles = await this.admin.getEventToggles(id);
+    const toggles = await this.admin.getEventToggles(id, userId);
     reply.send(toggles);
   }
 
@@ -228,9 +236,10 @@ export class AdminHandler {
     }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const id = parseInt(request.params.id, 10);
     const { eventType, isEnabled } = request.body;
-    await this.admin.upsertEventToggle(id, eventType, isEnabled);
+    await this.admin.upsertEventToggle(id, userId, eventType, isEnabled);
     reply.code(204).send();
   }
 
@@ -241,10 +250,11 @@ export class AdminHandler {
     }>,
     reply: FastifyReply,
   ): Promise<void> {
+    const userId = parseInt(request.userId!, 10);
     const id = parseInt(request.params.id, 10);
     const limit = Math.min(parseInt((request.query as Record<string, string>).limit ?? "50", 10), 100);
     const offset = parseInt((request.query as Record<string, string>).offset ?? "0", 10);
-    const result = await this.admin.getNotifierLogs(id, limit, offset);
+    const result = await this.admin.getNotifierLogs(id, userId, limit, offset);
     reply.send(result);
   }
 

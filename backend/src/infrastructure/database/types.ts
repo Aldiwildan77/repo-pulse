@@ -63,6 +63,7 @@ export type NewUserIdentityRow = Insertable<UserIdentityTable>;
 
 export interface RepoConfigTable {
   id: Generated<number>;
+  user_id: number | null;
   provider: "github" | "gitlab" | "bitbucket";
   provider_repo: string;
   platform: "discord" | "slack";

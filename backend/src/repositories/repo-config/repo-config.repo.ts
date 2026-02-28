@@ -8,6 +8,7 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
   async create(data: {
+    userId: number;
     provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
@@ -16,13 +17,14 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     const row = await this.db
       .insertInto("repo_configs")
       .values({
+        user_id: data.userId,
         provider: data.provider,
         provider_repo: data.providerRepo,
         platform: data.platform,
         channel_id: data.channelId,
       })
       .onConflict((oc) =>
-        oc.columns(["provider", "provider_repo", "platform"]).doUpdateSet({
+        oc.columns(["user_id", "provider", "provider_repo", "platform"]).doUpdateSet({
           channel_id: data.channelId,
           is_active: true,
           updated_at: new Date(),
@@ -44,21 +46,23 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     return row ? toRepoConfig(row) : null;
   }
 
-  async findAll(): Promise<RepoConfig[]> {
+  async findAllByUser(userId: number): Promise<RepoConfig[]> {
     const rows = await this.db
       .selectFrom("repo_configs")
       .selectAll()
+      .where("user_id", "=", userId)
       .orderBy("created_at", "desc")
       .execute();
 
     return rows.map(toRepoConfig);
   }
 
-  async findAllPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
+  async findAllByUserPaginated(userId: number, limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
     const [rows, countResult] = await Promise.all([
       this.db
         .selectFrom("repo_configs")
         .selectAll()
+        .where("user_id", "=", userId)
         .orderBy("created_at", "desc")
         .limit(limit)
         .offset(offset)
@@ -66,6 +70,7 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
       this.db
         .selectFrom("repo_configs")
         .select(this.db.fn.countAll().as("count"))
+        .where("user_id", "=", userId)
         .executeTakeFirstOrThrow(),
     ]);
 

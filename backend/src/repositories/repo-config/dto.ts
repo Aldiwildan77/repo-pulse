@@ -4,6 +4,7 @@ import type { RepoConfigRow, RepoEventToggleRow } from "../../infrastructure/dat
 export function toRepoConfig(row: RepoConfigRow): RepoConfig {
   return {
     id: row.id,
+    userId: row.user_id,
     provider: row.provider,
     providerRepo: row.provider_repo,
     platform: row.platform,

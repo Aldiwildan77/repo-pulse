@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 # Google Credentials
 */credentials.json
 */client_secret_*.json
+
+# Remotion for promo video
+promo-video

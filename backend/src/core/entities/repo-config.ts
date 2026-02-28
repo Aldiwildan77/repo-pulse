@@ -3,6 +3,7 @@ import type { SourceProvider } from "../webhook/webhook-provider.js";
 
 export interface RepoConfig {
   id: number;
+  userId: number | null;
   provider: SourceProvider;
   providerRepo: string;
   platform: Platform;

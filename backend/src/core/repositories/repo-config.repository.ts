@@ -2,6 +2,7 @@ import type { Platform, RepoConfig, RepoEventToggle, SourceProvider } from "../e
 
 export interface RepoConfigRepository {
   create(data: {
+    userId: number;
     provider: SourceProvider;
     providerRepo: string;
     platform: Platform;
@@ -10,9 +11,9 @@ export interface RepoConfigRepository {
 
   findById(id: number): Promise<RepoConfig | null>;
 
-  findAll(): Promise<RepoConfig[]>;
+  findAllByUser(userId: number): Promise<RepoConfig[]>;
 
-  findAllPaginated(limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }>;
+  findAllByUserPaginated(userId: number, limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }>;
 
   findByRepo(providerRepo: string): Promise<RepoConfig[]>;
 
