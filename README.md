@@ -2,7 +2,7 @@
 
 A webhook-driven integration platform that bridges GitHub/Gitlab/Bitbucket/Others pull request events to Discord and Slack. Get real-time PR notifications, mention routing, and status synchronization to your team's chat platforms like Slack and Discord!
 
-https://github.com/user-attachments/assets/49485206-2f10-49f2-aa1b-9f92a9c076ac
+https://github.com/user-attachments/assets/e8c20e4e-b069-4636-8904-164640339572
 
 ## Features
 
