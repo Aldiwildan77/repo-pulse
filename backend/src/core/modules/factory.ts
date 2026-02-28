@@ -8,11 +8,13 @@ import { SlackPusher } from "./pusher/slack.pusher.js";
 import { NotifierModule } from "./notifier.js";
 import { AuthModule } from "./auth.js";
 import { AdminModule } from "./admin.js";
+import { TotpModule } from "./totp.js";
 
 export class ModuleFactory {
   readonly notifier: NotifierModule;
   readonly auth: AuthModule;
   readonly admin: AdminModule;
+  readonly totp: TotpModule;
 
   constructor(config: Config, repos: RepositoryFactory, infra: InfrastructureFactory) {
     const pushers = new Map<Platform, Pusher>([
@@ -31,6 +33,8 @@ export class ModuleFactory {
       infra.logger.child({ module: "notifier" }),
     );
 
+    this.totp = new TotpModule(repos.userTotp, infra.totpCrypto, infra.jwt);
+
     this.auth = new AuthModule(
       config,
       repos.userBinding,
@@ -40,6 +44,7 @@ export class ModuleFactory {
       infra.discordOAuth,
       infra.slackOAuth,
       infra.jwt,
+      this.totp,
     );
 
     this.admin = new AdminModule(config, repos.repoConfig, repos.connectedRepo, pushers);

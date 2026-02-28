@@ -4,6 +4,7 @@ export interface Database {
   pr_messages: PrMessageTable;
   user_bindings: UserBindingTable;
   user_identities: UserIdentityTable;
+  user_totp: UserTotpTable;
   repo_configs: RepoConfigTable;
   webhook_events: WebhookEventTable;
   connected_repos: ConnectedRepoTable;
@@ -96,3 +97,17 @@ export interface ConnectedRepoTable {
 
 export type ConnectedRepoRow = Selectable<ConnectedRepoTable>;
 export type NewConnectedRepoRow = Insertable<ConnectedRepoTable>;
+
+export interface UserTotpTable {
+  id: Generated<number>;
+  user_id: number;
+  totp_secret_encrypted: string;
+  is_enabled: Generated<boolean>;
+  backup_codes_hash: Generated<unknown>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type UserTotpRow = Selectable<UserTotpTable>;
+export type NewUserTotpRow = Insertable<UserTotpTable>;
+export type UserTotpUpdate = Updateable<UserTotpTable>;

@@ -6,9 +6,11 @@ import { KyselyRepoConfigRepository } from "./repo-config/repo-config.repo.js";
 import { KyselyWebhookEventRepository } from "./webhook-event/webhook-event.repo.js";
 import { KyselyAuthRepository } from "./auth/auth.repo.js";
 import { KyselyConnectedRepoRepository } from "./connected-repo/connected-repo.repo.js";
+import { KyselyUserTotpRepository } from "./user-totp/user-totp.repo.js";
 import type { PrMessageRepository } from "../core/repositories/pr-message.repository.js";
 import type { UserBindingRepository } from "../core/repositories/user-binding.repository.js";
 import type { UserIdentityRepository } from "../core/repositories/user-identity.repository.js";
+import type { UserTotpRepository } from "../core/repositories/user-totp.repository.js";
 import type { RepoConfigRepository } from "../core/repositories/repo-config.repository.js";
 import type { WebhookEventRepository } from "../core/repositories/webhook-event.repository.js";
 import type { ConnectedRepoRepository } from "../core/repositories/connected-repo.repository.js";
@@ -21,6 +23,7 @@ export class RepositoryFactory {
   readonly webhookEvent: WebhookEventRepository;
   readonly auth: KyselyAuthRepository;
   readonly connectedRepo: ConnectedRepoRepository;
+  readonly userTotp: UserTotpRepository;
 
   constructor(infra: InfrastructureFactory) {
     this.prMessage = new KyselyPrMessageRepository(infra.db);
@@ -30,5 +33,6 @@ export class RepositoryFactory {
     this.webhookEvent = new KyselyWebhookEventRepository(infra.db);
     this.auth = new KyselyAuthRepository(infra.db);
     this.connectedRepo = new KyselyConnectedRepoRepository(infra.db);
+    this.userTotp = new KyselyUserTotpRepository(infra.db);
   }
 }

@@ -10,6 +10,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { ProfilePage } from "@/pages/profile";
 import { RepositoriesPage } from "@/pages/repositories";
 import { RepositoryConfigPage } from "@/pages/repositories/config";
+import { VerifyTotpPage } from "@/pages/verify-totp";
 import { NotFoundPage } from "@/pages/not-found";
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
 
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify-totp" element={<VerifyTotpPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>

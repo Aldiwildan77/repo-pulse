@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 export interface JwtPayload {
   sub: string;
   username?: string;
-  type: "access" | "refresh";
+  type: "access" | "refresh" | "totp_pending";
 }
 
 export class JwtService {
@@ -37,6 +37,20 @@ export class JwtService {
     const payload = jwt.verify(token, this.secret) as JwtPayload;
     if (payload.type !== "refresh") {
       throw new Error("Invalid token type: expected refresh token");
+    }
+    return payload;
+  }
+
+  signTotpPendingToken(payload: Omit<JwtPayload, "type">): string {
+    return jwt.sign({ ...payload, type: "totp_pending" }, this.secret, {
+      expiresIn: "5m",
+    });
+  }
+
+  verifyTotpPendingToken(token: string): JwtPayload {
+    const payload = jwt.verify(token, this.secret) as JwtPayload;
+    if (payload.type !== "totp_pending") {
+      throw new Error("Invalid token type: expected totp_pending token");
     }
     return payload;
   }

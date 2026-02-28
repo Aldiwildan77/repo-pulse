@@ -9,6 +9,7 @@ import { GitLabWebhookProvider } from "./webhook/gitlab.provider.js";
 import { BitbucketWebhookProvider } from "./webhook/bitbucket.provider.js";
 import { AuthHandler } from "./auth.handler.js";
 import { AdminHandler } from "./admin.handler.js";
+import { TotpHandler } from "./totp.handler.js";
 import { HealthHandler } from "./health.handler.js";
 import { AuthMiddleware } from "./middleware/auth.middleware.js";
 
@@ -16,6 +17,7 @@ export class HandlerFactory {
   readonly webhook: WebhookHandler;
   readonly auth: AuthHandler;
   readonly admin: AdminHandler;
+  readonly totp: TotpHandler;
   readonly health: HealthHandler;
 
   constructor(config: Config, modules: ModuleFactory, infra: InfrastructureFactory) {
@@ -32,6 +34,7 @@ export class HandlerFactory {
     );
     this.auth = new AuthHandler(modules.auth, config, authMiddleware);
     this.admin = new AdminHandler(modules.admin, modules.auth, authMiddleware);
+    this.totp = new TotpHandler(modules.totp, modules.auth, config, authMiddleware);
     this.health = new HealthHandler();
   }
 
@@ -39,6 +42,7 @@ export class HandlerFactory {
     this.health.register(app);
     this.webhook.register(app);
     this.auth.register(app);
+    this.totp.register(app);
     this.admin.register(app);
   }
 }

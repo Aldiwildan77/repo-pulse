@@ -6,6 +6,7 @@ import type { AuthMiddleware } from "./middleware/auth.middleware.js";
 
 const ACCESS_TOKEN_MAX_AGE = 15 * 60; // 15 minutes
 const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
+const TOTP_PENDING_MAX_AGE = 5 * 60; // 5 minutes
 
 export class AuthHandler {
   constructor(
@@ -57,9 +58,15 @@ export class AuthHandler {
     // Check if user is already logged in (binding mode)
     const existingUserId = this.getLoggedInUserId(request);
 
-    const { accessToken, refreshToken } = await this.auth.handleGithubCallback(code, existingUserId);
+    const result = await this.auth.handleGithubCallback(code, existingUserId);
 
-    this.setAuthCookies(reply, accessToken, refreshToken);
+    if (result.totpRequired && result.totpPendingToken && !existingUserId) {
+      this.setTotpPendingCookie(reply, result.totpPendingToken);
+      reply.redirect(`${this.config.frontendUrl}/verify-totp`);
+      return;
+    }
+
+    this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
 
     // Binding redirects to profile; login redirects to home
     reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
@@ -84,9 +91,15 @@ export class AuthHandler {
     // Check if user is already logged in (binding mode)
     const existingUserId = this.getLoggedInUserId(request);
 
-    const { accessToken, refreshToken } = await this.auth.handleGoogleCallback(code, existingUserId);
+    const result = await this.auth.handleGoogleCallback(code, existingUserId);
 
-    this.setAuthCookies(reply, accessToken, refreshToken);
+    if (result.totpRequired && result.totpPendingToken && !existingUserId) {
+      this.setTotpPendingCookie(reply, result.totpPendingToken);
+      reply.redirect(`${this.config.frontendUrl}/verify-totp`);
+      return;
+    }
+
+    this.setAuthCookies(reply, result.accessToken!, result.refreshToken!);
 
     reply.redirect(existingUserId ? `${this.config.frontendUrl}/profile` : this.config.frontendUrl);
   }
@@ -150,6 +163,7 @@ export class AuthHandler {
     }
 
     const identities = await this.auth.getIdentities(userId);
+    const totpEnabled = await this.auth.isTotpEnabled(userId);
 
     const githubIdentity = identities.find((i) => i.provider === "github");
     const googleIdentity = identities.find((i) => i.provider === "google");
@@ -163,6 +177,7 @@ export class AuthHandler {
       githubBound: !!githubIdentity,
       googleBound: !!googleIdentity,
       googleEmail: googleIdentity?.providerEmail ?? null,
+      totpEnabled,
       identities: identities.map((i) => ({
         provider: i.provider,
         providerUserId: i.providerUserId,
@@ -211,6 +226,17 @@ export class AuthHandler {
     } catch {
       return undefined;
     }
+  }
+
+  private setTotpPendingCookie(reply: FastifyReply, token: string): void {
+    reply.setCookie("totpPendingToken", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: TOTP_PENDING_MAX_AGE,
+      ...(this.config.cookieDomain && { domain: this.config.cookieDomain }),
+    });
   }
 
   private setAuthCookies(reply: FastifyReply, accessToken: string, refreshToken: string): void {

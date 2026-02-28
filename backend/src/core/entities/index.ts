@@ -4,4 +4,5 @@ export type { UserIdentity } from "./user-identity.js";
 export type { RepoConfig } from "./repo-config.js";
 export type { WebhookEvent } from "./webhook-event.js";
 export type { ConnectedRepo } from "./connected-repo.js";
+export type { UserTotp } from "./user-totp.js";
 export type { SourceProvider } from "../webhook/webhook-provider.js";

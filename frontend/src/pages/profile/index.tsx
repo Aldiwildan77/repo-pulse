@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserBindings } from "@/hooks/use-user-bindings";
 import { useDiscordBotInvite } from "@/hooks/use-platforms";
 import { PlatformBindingCard } from "@/components/profile/platform-binding-card";
+import { TotpSection } from "@/components/profile/totp-section";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
@@ -86,6 +87,10 @@ export function ProfilePage() {
           />
         </div>
       </div>
+
+      <Separator />
+
+      <TotpSection />
     </div>
   );
 }

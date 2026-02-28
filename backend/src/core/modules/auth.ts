@@ -6,7 +6,16 @@ import type { GoogleOAuthService } from "../../infrastructure/auth/google-oauth.
 import type { DiscordOAuthService } from "../../infrastructure/auth/discord-oauth.js";
 import type { SlackOAuthService } from "../../infrastructure/auth/slack-oauth.js";
 import type { KyselyAuthRepository } from "../../repositories/auth/auth.repo.js";
+import type { TotpModule } from "./totp.js";
 import type { UserBinding, UserIdentity } from "../entities/index.js";
+
+export interface AuthCallbackResult {
+  accessToken?: string;
+  refreshToken?: string;
+  totpPendingToken?: string;
+  totpRequired: boolean;
+  user: UserBinding;
+}
 
 export class AuthModule {
   constructor(
@@ -18,6 +27,7 @@ export class AuthModule {
     private readonly discordOAuth: DiscordOAuthService,
     private readonly slackOAuth: SlackOAuthService,
     private readonly jwt: JwtService,
+    private readonly totpModule: TotpModule | null,
   ) {}
 
   getAvailableLoginProviders(): string[] {
@@ -45,7 +55,7 @@ export class AuthModule {
   async handleGithubCallback(
     code: string,
     existingUserId?: number,
-  ): Promise<{ accessToken: string; refreshToken: string; user: UserBinding }> {
+  ): Promise<AuthCallbackResult> {
     const oauthToken = await this.githubOAuth.exchangeCode(code);
     const ghUser = await this.githubOAuth.getUser(oauthToken);
 
@@ -68,12 +78,7 @@ export class AuthModule {
       const user = await this.authRepo.findUserById(existingUserId);
       if (!user) throw new Error("User not found");
 
-      const tokenPayload = { sub: String(user.id) };
-      return {
-        accessToken: this.jwt.signAccessToken(tokenPayload),
-        refreshToken: this.jwt.signRefreshToken(tokenPayload),
-        user,
-      };
+      return this.buildAuthResult(user);
     }
 
     // Login mode: find or create user by GitHub identity
@@ -90,18 +95,13 @@ export class AuthModule {
       });
     }
 
-    const tokenPayload = { sub: String(user.id) };
-    return {
-      accessToken: this.jwt.signAccessToken(tokenPayload),
-      refreshToken: this.jwt.signRefreshToken(tokenPayload),
-      user,
-    };
+    return this.buildAuthResult(user);
   }
 
   async handleGoogleCallback(
     code: string,
     existingUserId?: number,
-  ): Promise<{ accessToken: string; refreshToken: string; user: UserBinding }> {
+  ): Promise<AuthCallbackResult> {
     if (!this.googleOAuth) {
       throw new Error("Google OAuth is not configured");
     }
@@ -129,12 +129,7 @@ export class AuthModule {
       const user = await this.authRepo.findUserById(existingUserId);
       if (!user) throw new Error("User not found");
 
-      const tokenPayload = { sub: String(user.id) };
-      return {
-        accessToken: this.jwt.signAccessToken(tokenPayload),
-        refreshToken: this.jwt.signRefreshToken(tokenPayload),
-        user,
-      };
+      return this.buildAuthResult(user);
     }
 
     // Login mode: find or create user by Google identity
@@ -152,12 +147,7 @@ export class AuthModule {
       });
     }
 
-    const tokenPayload = { sub: String(user.id) };
-    return {
-      accessToken: this.jwt.signAccessToken(tokenPayload),
-      refreshToken: this.jwt.signRefreshToken(tokenPayload),
-      user,
-    };
+    return this.buildAuthResult(user);
   }
 
   async handleDiscordCallback(code: string, userId: number): Promise<void> {
@@ -189,6 +179,37 @@ export class AuthModule {
     return {
       accessToken: this.jwt.signAccessToken(tokenPayload),
       refreshToken: this.jwt.signRefreshToken(tokenPayload),
+    };
+  }
+
+  issueTokens(userId: number): { accessToken: string; refreshToken: string } {
+    const tokenPayload = { sub: String(userId) };
+    return {
+      accessToken: this.jwt.signAccessToken(tokenPayload),
+      refreshToken: this.jwt.signRefreshToken(tokenPayload),
+    };
+  }
+
+  async isTotpEnabled(userId: number): Promise<boolean> {
+    if (!this.totpModule) return false;
+    return this.totpModule.isTotpEnabled(userId);
+  }
+
+  private async buildAuthResult(user: UserBinding): Promise<AuthCallbackResult> {
+    if (this.totpModule && (await this.totpModule.isTotpEnabled(user.id))) {
+      return {
+        totpPendingToken: this.totpModule.signTotpPendingToken(user.id),
+        totpRequired: true,
+        user,
+      };
+    }
+
+    const tokenPayload = { sub: String(user.id) };
+    return {
+      accessToken: this.jwt.signAccessToken(tokenPayload),
+      refreshToken: this.jwt.signRefreshToken(tokenPayload),
+      totpRequired: false,
+      user,
     };
   }
 }
