@@ -38,7 +38,7 @@ export class KyselyAuthRepository {
   async createUser(): Promise<User> {
     const row = await this.db
       .insertInto("users")
-      .values({})
+      .defaultValues()
       .returningAll()
       .executeTakeFirstOrThrow();
 
