@@ -68,7 +68,7 @@ export class DiscordPusher implements Pusher {
     await user.send({ embeds: [embed] });
   }
 
-  async sendLabelNotification(channelId: string, payload: LabelNotificationPayload): Promise<void> {
+  async sendLabelNotification(channelId: string, payload: LabelNotificationPayload): Promise<string> {
     await this.ready;
 
     const channel = await this.client.channels.fetch(channelId);
@@ -93,7 +93,8 @@ export class DiscordPusher implements Pusher {
       )
       .setColor(color);
 
-    await channel.send({ embeds: [embed] });
+    const message = await channel.send({ embeds: [embed] });
+    return message.id;
   }
 
   async sendIssueNotification(channelId: string, payload: IssueNotificationPayload): Promise<void> {
@@ -145,6 +146,18 @@ export class DiscordPusher implements Pusher {
 
     const message = await channel.messages.fetch(messageId);
     await message.edit({ components: [] });
+  }
+
+  async deleteMessage(channelId: string, messageId: string): Promise<void> {
+    await this.ready;
+
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+      throw new Error(`Channel ${channelId} not found or not a text channel`);
+    }
+
+    const message = await channel.messages.fetch(messageId);
+    await message.delete();
   }
 
   async listGuilds(): Promise<Guild[]> {

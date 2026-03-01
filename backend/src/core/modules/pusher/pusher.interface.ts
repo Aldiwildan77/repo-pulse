@@ -56,7 +56,7 @@ export interface Pusher {
   sendLabelNotification(
     channelId: string,
     payload: LabelNotificationPayload,
-  ): Promise<void>;
+  ): Promise<string>; // returns platform message ID
 
   sendIssueNotification(
     channelId: string,
@@ -70,6 +70,11 @@ export interface Pusher {
   ): Promise<void>;
 
   removeButtons(
+    channelId: string,
+    messageId: string,
+  ): Promise<void>;
+
+  deleteMessage(
     channelId: string,
     messageId: string,
   ): Promise<void>;

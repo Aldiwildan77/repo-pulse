@@ -52,4 +52,31 @@ export class KyselyUserRepository implements UserRepository {
       providerUserId: row.provider_user_id,
     }));
   }
+
+  async findTargetIdentities(
+    sourceProvider: string,
+    sourceUsernames: string[],
+    targetPlatform: string,
+  ): Promise<{ sourceUsername: string; targetUserId: string }[]> {
+    if (sourceUsernames.length === 0) return [];
+
+    const rows = await this.db
+      .selectFrom("user_identities as source")
+      .innerJoin("user_identities as target", "target.user_id", "source.user_id")
+      .select([
+        "source.provider_username as source_username",
+        "target.provider_user_id as target_user_id",
+      ])
+      .where("source.provider", "=", sourceProvider as any)
+      .where("source.provider_username", "in", sourceUsernames)
+      .where("target.provider", "=", targetPlatform as any)
+      .execute();
+
+    return rows
+      .filter((r) => r.source_username !== null)
+      .map((r) => ({
+        sourceUsername: r.source_username!,
+        targetUserId: r.target_user_id,
+      }));
+  }
 }

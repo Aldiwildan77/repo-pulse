@@ -74,11 +74,11 @@ export class SlackPusher implements Pusher {
     });
   }
 
-  async sendLabelNotification(channelId: string, payload: LabelNotificationPayload): Promise<void> {
+  async sendLabelNotification(channelId: string, payload: LabelNotificationPayload): Promise<string> {
     const actionText = payload.action === "labeled" ? "Label Added" : "Label Removed";
     const emoji = payload.action === "labeled" ? ":label:" : ":wastebasket:";
 
-    await this.client.chat.postMessage({
+    const result = await this.client.chat.postMessage({
       channel: channelId,
       blocks: [
         {
@@ -98,6 +98,11 @@ export class SlackPusher implements Pusher {
       ],
       text: `${actionText}: ${payload.label.name} on ${payload.prTitle}`,
     });
+
+    if (!result.ts) {
+      throw new Error("Slack message sent but no timestamp returned");
+    }
+    return result.ts;
   }
 
   async sendIssueNotification(channelId: string, payload: IssueNotificationPayload): Promise<void> {
@@ -163,6 +168,13 @@ export class SlackPusher implements Pusher {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       blocks: blocksWithoutActions as any,
       text: originalMessage.text ?? "",
+    });
+  }
+
+  async deleteMessage(channelId: string, messageId: string): Promise<void> {
+    await this.client.chat.delete({
+      channel: channelId,
+      ts: messageId,
     });
   }
 

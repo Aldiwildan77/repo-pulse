@@ -237,28 +237,86 @@ export class NotifierModule {
   }
 
   async handlePrLabelChanged(event: PrLabelChangedEvent): Promise<void> {
-    // Only notify channels that received the original PR notification
-    const deliveries = await this.deliveryRepo.findByProviderEntity(String(event.prId), event.repo);
+    const labelEntityId = `${event.prId}:label:${event.label.name}`;
 
-    if (deliveries.length === 0) {
-      this.logger.info("Skipping label notification — PR was not sent to any channel", {
-        repo: event.repo,
-        prId: event.prId,
-        label: event.label.name,
-      });
-      return;
-    }
-
+    // PR deliveries — to know which channels already have the PR
+    const prDeliveries = await this.deliveryRepo.findByProviderEntity(String(event.prId), event.repo);
     const deliveredChannels = new Set(
-      deliveries.map((d) => `${d.notificationPlatform}:${d.providerChannelId}`),
+      prDeliveries.map((d) => `${d.notificationPlatform}:${d.providerChannelId}`),
     );
 
     const notifications = await this.notificationRepo.findActiveByRepo(event.repo);
+    await this.populateTags(notifications);
 
+    if (event.action === "unlabeled") {
+      // Find and delete the label notification messages
+      const labelDeliveries = await this.deliveryRepo.findByProviderEntity(labelEntityId, event.repo);
+
+      for (const delivery of labelDeliveries) {
+        if (!delivery.providerChannelId || !delivery.providerMessageId || delivery.deletedAt) continue;
+
+        try {
+          const pusher = this.pushers.get(delivery.notificationPlatform);
+          if (!pusher) continue;
+
+          await pusher.deleteMessage(delivery.providerChannelId, delivery.providerMessageId);
+          await this.deliveryRepo.updateDelivery(delivery.id, { deletedAt: new Date() });
+        } catch (err) {
+          this.logger.error("Failed to delete label notification message", {
+            error: String(err),
+            repo: event.repo,
+            prId: event.prId,
+            label: event.label.name,
+            platform: delivery.notificationPlatform,
+          });
+        }
+      }
+      return;
+    }
+
+    // action === "labeled"
     for (const notif of notifications) {
       const key = `${notif.notificationPlatform}:${notif.channelId}`;
-      if (!deliveredChannels.has(key)) continue;
+      const alreadyDelivered = deliveredChannels.has(key);
 
+      // PR not yet sent to this channel → send PR notification if tag matches
+      if (!alreadyDelivered) {
+        const labelLower = event.label.name.toLowerCase();
+        const matches = notif.tags.length > 0 && notif.tags.some((t) => t.toLowerCase() === labelLower);
+        if (!matches) continue;
+
+        if (!(await this.isEventEnabled(notif, "pr_opened"))) {
+          await this.logEvent(notif, "pr_opened", "skipped", `PR #${event.prId} late delivery via label (disabled)`, String(event.prId), event.prId);
+          continue;
+        }
+
+        try {
+          const pusher = this.pushers.get(notif.notificationPlatform);
+          if (!pusher) continue;
+
+          const messageId = await pusher.sendPrNotification(notif.channelId, {
+            repo: event.repo,
+            title: event.prTitle,
+            author: event.author,
+            url: event.prUrl,
+          });
+
+          const logId = await this.logEvent(notif, "pr_opened", "delivered", `PR #${event.prId} "${event.prTitle}" by ${event.author} (label: "${event.label.name}")`, String(event.prId), event.prId);
+
+          await this.deliveryRepo.create({
+            notifierLogId: logId,
+            notificationPlatform: notif.notificationPlatform,
+            providerMessageId: messageId,
+            providerChannelId: notif.channelId,
+            deliveredAt: new Date(),
+          });
+        } catch (err) {
+          await this.logEvent(notif, "pr_opened", "failed", `PR #${event.prId} "${event.prTitle}" (label: "${event.label.name}")`, String(event.prId), event.prId, String(err));
+        }
+        continue;
+      }
+
+      // PR already sent → send label notification and track it for deletion
       if (!(await this.isEventEnabled(notif, "pr_label"))) {
         await this.logEvent(notif, "pr_label", "skipped", `PR #${event.prId} label ${event.action} (disabled)`, String(event.prId), event.prId);
         continue;
@@ -268,7 +326,7 @@ export class NotifierModule {
         const pusher = this.pushers.get(notif.notificationPlatform);
         if (!pusher) continue;
 
-        await pusher.sendLabelNotification(notif.channelId, {
+        const messageId = await pusher.sendLabelNotification(notif.channelId, {
           repo: event.repo,
           prTitle: event.prTitle,
           prUrl: event.prUrl,
@@ -277,9 +335,17 @@ export class NotifierModule {
           author: event.author,
         });
 
-        await this.logEvent(notif, "pr_label", "delivered", `PR #${event.prId} ${event.action} "${event.label.name}"`, String(event.prId), event.prId);
+        const logId = await this.logEvent(notif, "pr_label", "delivered", `PR #${event.prId} labeled "${event.label.name}"`, labelEntityId, event.prId);
+
+        await this.deliveryRepo.create({
+          notifierLogId: logId,
+          notificationPlatform: notif.notificationPlatform,
+          providerMessageId: messageId,
+          providerChannelId: notif.channelId,
+          deliveredAt: new Date(),
+        });
       } catch (err) {
-        await this.logEvent(notif, "pr_label", "failed", `PR #${event.prId} label ${event.action}`, String(event.prId), event.prId, String(err));
+        await this.logEvent(notif, "pr_label", "failed", `PR #${event.prId} label ${event.action}`, labelEntityId, event.prId, String(err));
       }
     }
   }
@@ -338,8 +404,6 @@ export class NotifierModule {
 
     if (enabledPlatforms.size === 0) return;
 
-    const userResults = await this.userRepo.findByProviderUsernames("github", event.mentionedUsernames);
-
     const payload = {
       repo: event.repo,
       title: event.title,
@@ -349,34 +413,26 @@ export class NotifierModule {
       commentBody: event.body,
     };
 
-    for (const { user, providerUserId } of userResults) {
-      // For each user, find their discord/slack identities and send DM
-      for (const platform of enabledPlatforms) {
-        const pusher = this.pushers.get(platform);
-        if (!pusher) continue;
-
-        // We need to find the user's identity for this platform
-        // The providerUserId from findByProviderUsernames is the github user id
-        // We need to look up the discord/slack identity separately
-        // For now, we use the user repo which returns user + providerUserId for github
-        // We need a way to find their discord/slack identity
-        // This is handled by looking up user_identities for the user
-      }
-    }
-
-    // Simplified: send mention notifications to users who have platform identities
-    // This requires joining through identities - for now maintain the same logic pattern
+    // Look up GitHub usernames → Discord/Slack user IDs via cross-platform identity mapping
     for (const platform of enabledPlatforms) {
       const pusher = this.pushers.get(platform);
       if (!pusher) continue;
 
-      const platformUserResults = await this.userRepo.findByProviderUsernames(platform, event.mentionedUsernames);
-      for (const { providerUserId } of platformUserResults) {
+      const identities = await this.userRepo.findTargetIdentities("github", event.mentionedUsernames, platform);
+
+      for (const { sourceUsername, targetUserId } of identities) {
         try {
-          await pusher.sendMentionNotification(providerUserId, payload);
+          await pusher.sendMentionNotification(targetUserId, payload);
+          this.logger.info("Mention notification sent", {
+            repo: event.repo,
+            githubUser: sourceUsername,
+            platform,
+          });
         } catch (err) {
           this.logger.error("Failed to send mention notification", {
             error: String(err),
+            repo: event.repo,
+            githubUser: sourceUsername,
             platform,
           });
         }
