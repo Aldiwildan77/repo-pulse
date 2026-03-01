@@ -32,7 +32,7 @@ export class InfrastructureFactory {
   readonly rateLimiter: RateLimiter;
 
   constructor(config: Config) {
-    this.db = createDatabase(config.databaseUrl);
+    this.db = createDatabase(config.databaseUrl, config.debugQueryLog);
     this.redis = createRedisClient(config.redisUrl);
     this.jwt = new JwtService(config.jwtSecret, config.jwtAccessExpiry, config.jwtRefreshExpiry);
     this.logger = new AppLogger("repo-pulse");

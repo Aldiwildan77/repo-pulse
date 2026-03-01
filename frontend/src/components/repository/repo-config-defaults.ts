@@ -1,11 +1,13 @@
 import type { SourceProvider } from "@/utils/constants";
 
 export interface SourceValues {
+  workspaceId: number | null;
   providerType: SourceProvider;
   providerRepo: string;
 }
 
 export const defaultSourceValues: SourceValues = {
+  workspaceId: null,
   providerType: "github",
   providerRepo: "",
 };

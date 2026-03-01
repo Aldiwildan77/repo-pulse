@@ -60,6 +60,7 @@ const STEP_DESCRIPTIONS = [
 
 interface RepoConfigWizardProps {
   prefilled?: {
+    workspaceId?: number;
     providerType: SourceProvider;
     providerRepo: string;
   };
@@ -73,7 +74,11 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
 
   const [sourceValues, setSourceValues] = useState<SourceValues>(() => ({
     ...defaultSourceValues,
-    ...(prefilled ? { providerType: prefilled.providerType, providerRepo: prefilled.providerRepo } : {}),
+    ...(prefilled ? {
+      workspaceId: prefilled.workspaceId ?? null,
+      providerType: prefilled.providerType,
+      providerRepo: prefilled.providerRepo,
+    } : {}),
   }));
 
   // Multi-platform configs
@@ -88,7 +93,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
 
   const canGoNext = () => {
     if (currentStep === 0) {
-      return !!sourceValues.providerType && !!sourceValues.providerRepo;
+      return !!sourceValues.workspaceId && !!sourceValues.providerType && !!sourceValues.providerRepo;
     }
     if (currentStep === 1) {
       const hasValidMapping = (['discord', 'slack'] as const).some(
@@ -132,6 +137,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
 
       // Create ONE repo config with all notifications
       const repo = await create({
+        workspaceId: sourceValues.workspaceId!,
         providerType: sourceValues.providerType,
         providerRepo: sourceValues.providerRepo,
         notifications,

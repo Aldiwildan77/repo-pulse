@@ -51,6 +51,7 @@ export interface NotifierLog {
 }
 
 export interface RepoConfigInput {
+  workspaceId: number;
   providerType: SourceProvider;
   providerRepo: string;
   notifications: { platform: Platform; channelId: string; tags?: string[] }[];

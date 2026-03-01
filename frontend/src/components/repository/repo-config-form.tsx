@@ -20,6 +20,7 @@ import {
   useDiscordGuilds,
   useSlackChannels,
 } from '@/hooks/use-platforms';
+import { useWorkspaces } from '@/hooks/use-workspaces';
 import type { Platform, SourceProvider } from '@/utils/constants';
 import { API_URL } from '@/utils/constants';
 import { Switch } from '@/components/ui/switch';
@@ -46,6 +47,7 @@ export function SourceStepContent({
   setValues,
   initialProviderRepo,
 }: SourceStepContentProps) {
+  const { data: workspaces, isLoading: workspacesLoading } = useWorkspaces();
   const {
     repos: connectedRepos,
     isLoading: reposLoading,
@@ -55,24 +57,144 @@ export function SourceStepContent({
 
   const filteredRepos = connectedRepos;
 
+  const handleWorkspaceChange = (wsId: string) => {
+    setValues((prev) => ({ ...prev, workspaceId: Number(wsId) }));
+  };
+
   const handleProviderChange = (provider: SourceProvider) => {
     setValues((prev) => ({ ...prev, providerType: provider, providerRepo: '' }));
   };
 
   return (
     <div className='space-y-4'>
-      <div className='grid gap-4 sm:grid-cols-2'>
-        <FormField
-          label='Provider'
-          htmlFor='provider'
-          action={
-            <Tooltip>
-              <TooltipTrigger asChild>
+      {/* 1. Workspace */}
+      <FormField label='Workspace' htmlFor='workspace'>
+        <Select
+          value={values.workspaceId?.toString() ?? ''}
+          onValueChange={handleWorkspaceChange}
+          disabled={workspacesLoading}
+        >
+          <SelectTrigger id='workspace'>
+            <SelectValue
+              placeholder={
+                workspacesLoading ? 'Loading workspaces...' : 'Select a workspace'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {(workspaces ?? []).map((ws) => (
+              <SelectItem key={ws.id} value={ws.id.toString()}>
+                {ws.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+
+      {/* 2. Provider */}
+      <FormField
+        label='Provider'
+        htmlFor='provider'
+        action={
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon'
+                className='h-5 w-5'
+                onClick={() =>
+                  window.open(
+                    `${API_URL}/api/providers/${values.providerType}/install`,
+                    '_blank',
+                  )
+                }
+              >
+                <SettingsIcon className='h-3.5 w-3.5' />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Configure {providerNames[values.providerType]} App settings
+            </TooltipContent>
+          </Tooltip>
+        }
+      >
+        <Select
+          value={values.providerType}
+          onValueChange={(v: SourceProvider) => handleProviderChange(v)}
+        >
+          <SelectTrigger id='provider'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='github'>GitHub</SelectItem>
+            <SelectItem value='gitlab'>GitLab</SelectItem>
+            <SelectItem value='bitbucket'>Bitbucket</SelectItem>
+          </SelectContent>
+        </Select>
+      </FormField>
+
+      {/* 3. Repository */}
+      <FormField label='Repository' htmlFor='providerRepo'>
+        {reposError ? (
+          <div className='flex flex-col gap-2'>
+            <p className='text-sm text-destructive'>
+              {reposError}
+            </p>
+            <div className='flex gap-2'>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={refetchRepos}
+              >
+                <RefreshCwIcon className='mr-1 h-4 w-4' />
+                Retry
+              </Button>
+            </div>
+          </div>
+        ) : filteredRepos.length > 0 || reposLoading ? (
+          <Combobox
+            id='providerRepo'
+            options={[
+              ...(initialProviderRepo &&
+              !filteredRepos.some(
+                (r) => r.providerRepo === initialProviderRepo,
+              )
+                ? [
+                    {
+                      value: initialProviderRepo,
+                      label: initialProviderRepo,
+                    },
+                  ]
+                : []),
+              ...filteredRepos.map((r) => ({
+                value: r.providerRepo,
+                label: r.providerRepo,
+              })),
+            ]}
+            value={values.providerRepo}
+            onValueChange={(v) =>
+              setValues((prev) => ({ ...prev, providerRepo: v }))
+            }
+            disabled={reposLoading}
+            placeholder={
+              reposLoading ? 'Loading repositories...' : 'Select a repository'
+            }
+            searchPlaceholder='Search repositories...'
+            emptyMessage='No matching repositories.'
+          />
+        ) : (
+          <div className='flex flex-col gap-2'>
+            <p className='text-sm text-muted-foreground'>
+              No connected repositories found.
+            </p>
+            {values.providerType === 'github' && (
+              <div className='flex gap-2'>
                 <Button
                   type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='h-5 w-5'
+                  variant='outline'
+                  size='sm'
                   onClick={() =>
                     window.open(
                       `${API_URL}/api/providers/${values.providerType}/install`,
@@ -80,115 +202,23 @@ export function SourceStepContent({
                     )
                   }
                 >
-                  <SettingsIcon className='h-3.5 w-3.5' />
+                  <ExternalLinkIcon className='mr-1 h-4 w-4' />
+                  Install GitHub App
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Configure {providerNames[values.providerType]} App settings
-              </TooltipContent>
-            </Tooltip>
-          }
-        >
-          <Select
-            value={values.providerType}
-            onValueChange={(v: SourceProvider) => handleProviderChange(v)}
-          >
-            <SelectTrigger id='provider'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='github'>GitHub</SelectItem>
-              <SelectItem value='gitlab'>GitLab</SelectItem>
-              <SelectItem value='bitbucket'>Bitbucket</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        <FormField label='Repository' htmlFor='providerRepo'>
-          {reposError ? (
-            <div className='flex flex-col gap-2'>
-              <p className='text-sm text-destructive'>
-                {reposError}
-              </p>
-              <div className='flex gap-2'>
                 <Button
                   type='button'
-                  variant='outline'
+                  variant='ghost'
                   size='sm'
                   onClick={refetchRepos}
                 >
                   <RefreshCwIcon className='mr-1 h-4 w-4' />
-                  Retry
+                  Refresh
                 </Button>
               </div>
-            </div>
-          ) : filteredRepos.length > 0 || reposLoading ? (
-            <Combobox
-              id='providerRepo'
-              options={[
-                ...(initialProviderRepo &&
-                !filteredRepos.some(
-                  (r) => r.providerRepo === initialProviderRepo,
-                )
-                  ? [
-                      {
-                        value: initialProviderRepo,
-                        label: initialProviderRepo,
-                      },
-                    ]
-                  : []),
-                ...filteredRepos.map((r) => ({
-                  value: r.providerRepo,
-                  label: r.providerRepo,
-                })),
-              ]}
-              value={values.providerRepo}
-              onValueChange={(v) =>
-                setValues((prev) => ({ ...prev, providerRepo: v }))
-              }
-              disabled={reposLoading}
-              placeholder={
-                reposLoading ? 'Loading repositories...' : 'Select a repository'
-              }
-              searchPlaceholder='Search repositories...'
-              emptyMessage='No matching repositories.'
-            />
-          ) : (
-            <div className='flex flex-col gap-2'>
-              <p className='text-sm text-muted-foreground'>
-                No connected repositories found.
-              </p>
-              {values.providerType === 'github' && (
-                <div className='flex gap-2'>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() =>
-                      window.open(
-                        `${API_URL}/api/providers/${values.providerType}/install`,
-                        '_blank',
-                      )
-                    }
-                  >
-                    <ExternalLinkIcon className='mr-1 h-4 w-4' />
-                    Install GitHub App
-                  </Button>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='sm'
-                    onClick={refetchRepos}
-                  >
-                    <RefreshCwIcon className='mr-1 h-4 w-4' />
-                    Refresh
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </FormField>
-      </div>
+            )}
+          </div>
+        )}
+      </FormField>
     </div>
   );
 }

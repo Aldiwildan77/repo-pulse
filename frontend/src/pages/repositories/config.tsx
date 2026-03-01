@@ -37,9 +37,11 @@ export function RepositoryConfigPage() {
   const [searchParams] = useSearchParams();
   const prefillProvider = searchParams.get("provider");
   const prefillRepo = searchParams.get("repo");
+  const prefillWorkspace = searchParams.get("workspace");
   const prefilled =
     prefillProvider && prefillRepo
       ? {
+          workspaceId: prefillWorkspace ? Number(prefillWorkspace) : undefined,
           providerType: prefillProvider as SourceProvider,
           providerRepo: prefillRepo,
         }

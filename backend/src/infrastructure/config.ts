@@ -39,6 +39,7 @@ const configSchema = z.object({
   host: z.string().default('0.0.0.0'),
   frontendUrl: z.string().url(),
   cookieDomain: z.string().optional(),
+  debugQueryLog: z.coerce.boolean().default(false),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -83,5 +84,6 @@ export function loadConfig(): Config {
     host: process.env.HOST,
     frontendUrl: process.env.FRONTEND_URL,
     cookieDomain: process.env.COOKIE_DOMAIN,
+    debugQueryLog: process.env.DEBUG_QUERY_LOG,
   });
 }
