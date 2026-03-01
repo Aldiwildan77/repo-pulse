@@ -183,14 +183,14 @@ export function WorkspaceDetailPage() {
               <DialogHeader>
                 <DialogTitle>Invite Member</DialogTitle>
                 <DialogDescription>
-                  Invite a user by their GitHub username.
+                  Invite a user by their username. They must have signed in to the app first.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">GitHub Username</label>
+                  <label className="text-sm font-medium">Username</label>
                   <Input
-                    placeholder="username"
+                    placeholder="GitHub, Discord, or Slack username"
                     value={inviteUsername}
                     onChange={(e) => setInviteUsername(e.target.value)}
                   />
@@ -224,7 +224,7 @@ export function WorkspaceDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User ID</TableHead>
+                <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
@@ -235,7 +235,7 @@ export function WorkspaceDetailPage() {
               {workspace.members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
-                    {member.userId}
+                    {member.username ?? `User #${member.userId}`}
                   </TableCell>
                   <TableCell>
                     <Badge variant={roleBadgeVariant(member.role)}>

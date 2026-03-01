@@ -110,16 +110,16 @@ export class WorkspaceHandler {
   private async inviteMember(
     request: FastifyRequest<{
       Params: { id: string };
-      Body: { providerUsername: string; role: WorkspaceRole };
+      Body: { username: string; role: WorkspaceRole };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
     const workspaceId = parseInt(request.params.id, 10);
-    const { providerUsername, role } = request.body;
+    const { username, role } = request.body;
 
     try {
-      const member = await this.workspace.inviteMember(workspaceId, userId, providerUsername, role);
+      const member = await this.workspace.inviteMember(workspaceId, userId, username, role);
       reply.code(201).send(member);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Invite failed";

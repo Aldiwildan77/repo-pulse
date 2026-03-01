@@ -10,11 +10,12 @@ export function toWorkspace(row: WorkspaceRow): Workspace {
   };
 }
 
-export function toWorkspaceMember(row: WorkspaceMemberRow): WorkspaceMember {
+export function toWorkspaceMember(row: WorkspaceMemberRow & { username?: string | null }): WorkspaceMember {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
     userId: row.user_id,
+    username: row.username ?? null,
     role: row.role,
     status: row.status,
     invitedBy: row.invited_by,

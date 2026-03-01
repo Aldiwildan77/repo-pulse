@@ -12,6 +12,7 @@ export interface WorkspaceMember {
   id: number;
   workspaceId: number;
   userId: number;
+  username: string | null;
   role: WorkspaceRole;
   status: WorkspaceMemberStatus;
   invitedBy: number | null;

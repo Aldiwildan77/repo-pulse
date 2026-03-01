@@ -22,6 +22,7 @@ export interface Database {
 
 export interface UserTable {
   id: Generated<number>;
+  username: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

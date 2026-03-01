@@ -58,8 +58,10 @@ export class KyselyWorkspaceRepository implements WorkspaceRepository {
   async findMembers(workspaceId: number): Promise<WorkspaceMember[]> {
     const rows = await this.db
       .selectFrom("workspace_members")
-      .selectAll()
-      .where("workspace_id", "=", workspaceId)
+      .innerJoin("users", "users.id", "workspace_members.user_id")
+      .selectAll("workspace_members")
+      .select("users.username")
+      .where("workspace_members.workspace_id", "=", workspaceId)
       .execute();
 
     return rows.map(toWorkspaceMember);

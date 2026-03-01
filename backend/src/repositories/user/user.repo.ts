@@ -35,6 +35,7 @@ export class KyselyUserRepository implements UserRepository {
       .innerJoin("user_identities", "user_identities.user_id", "users.id")
       .select([
         "users.id",
+        "users.username",
         "users.created_at",
         "users.updated_at",
         "user_identities.provider_user_id",
@@ -46,11 +47,22 @@ export class KyselyUserRepository implements UserRepository {
     return rows.map((row) => ({
       user: {
         id: row.id,
+        username: row.username ?? null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       },
       providerUserId: row.provider_user_id,
     }));
+  }
+
+  async findByUsername(username: string): Promise<User | null> {
+    const row = await this.db
+      .selectFrom("users")
+      .selectAll()
+      .where("username", "=", username)
+      .executeTakeFirst();
+
+    return row ? toUser(row) : null;
   }
 
   async findTargetIdentities(

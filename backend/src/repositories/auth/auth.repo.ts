@@ -35,10 +35,10 @@ function toUserIdentity(row: {
 export class KyselyAuthRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
-  async createUser(): Promise<User> {
+  async createUser(username?: string | null): Promise<User> {
     const row = await this.db
       .insertInto("users")
-      .defaultValues()
+      .values({ username: username ?? null })
       .returningAll()
       .executeTakeFirstOrThrow();
 
@@ -131,6 +131,14 @@ export class KyselyAuthRepository {
         updated_at: new Date(),
       })
       .where("id", "=", identityId)
+      .execute();
+  }
+
+  async updateUsername(userId: number, username: string): Promise<void> {
+    await this.db
+      .updateTable("users")
+      .set({ username, updated_at: new Date() })
+      .where("id", "=", userId)
       .execute();
   }
 

@@ -44,24 +44,22 @@ export class WorkspaceModule {
   async inviteMember(
     workspaceId: number,
     inviterUserId: number,
-    providerUsername: string,
+    username: string,
     role: WorkspaceRole,
   ): Promise<WorkspaceMember> {
     await this.requireRole(workspaceId, inviterUserId, ["owner", "admin"]);
 
-    const users = await this.userRepo.findByProviderUsernames("github", [providerUsername]);
-    if (users.length === 0) {
-      throw new Error("User not found");
+    const user = await this.userRepo.findByUsername(username);
+    if (!user) {
+      throw new Error("User not found. They must have signed in to the app first.");
     }
 
-    const targetUserId = users[0].user.id;
-
-    const existing = await this.workspaceRepo.findMemberByUserAndWorkspace(targetUserId, workspaceId);
+    const existing = await this.workspaceRepo.findMemberByUserAndWorkspace(user.id, workspaceId);
     if (existing) {
       throw new Error("User is already a member of this workspace");
     }
 
-    return this.workspaceRepo.addMember(workspaceId, targetUserId, role, "pending");
+    return this.workspaceRepo.addMember(workspaceId, user.id, role, "pending");
   }
 
   async removeMember(

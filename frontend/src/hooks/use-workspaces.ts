@@ -14,6 +14,7 @@ export interface WorkspaceMember {
   id: number;
   workspaceId: number;
   userId: number;
+  username: string | null;
   role: "owner" | "admin" | "member";
   status: "pending" | "accepted" | "rejected" | "removed";
   invitedBy: number | null;
@@ -62,13 +63,13 @@ export function useWorkspaceMutations() {
   );
 
   const inviteMember = useCallback(
-    async (workspaceId: number, providerUsername: string, role: string) => {
+    async (workspaceId: number, username: string, role: string) => {
       try {
         const member = await apiClient<WorkspaceMember>(
           `/api/workspaces/${workspaceId}/members`,
           {
             method: "POST",
-            body: JSON.stringify({ providerUsername, role }),
+            body: JSON.stringify({ username, role }),
           },
         );
         toast.success("Member invited");

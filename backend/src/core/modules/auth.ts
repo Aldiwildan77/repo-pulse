@@ -288,6 +288,10 @@ export class AuthModule {
 
       const user = await this.authRepo.findUserById(existingUserId);
       if (!user) throw new Error("User not found");
+      if (!user.username && params.providerUsername) {
+        await this.authRepo.updateUsername(user.id, params.providerUsername);
+        user.username = params.providerUsername;
+      }
       return this.buildAuthResult(user);
     }
 
@@ -303,9 +307,13 @@ export class AuthModule {
         );
       }
       user = (await this.authRepo.findUserById(existingIdentity.userId))!;
+      if (!user.username && params.providerUsername) {
+        await this.authRepo.updateUsername(user.id, params.providerUsername);
+        user.username = params.providerUsername;
+      }
     } else {
       // New user — create user + auto-create workspace
-      user = await this.authRepo.createUser();
+      user = await this.authRepo.createUser(params.providerUsername);
       const workspace = await this.workspaceRepo.create(`${params.providerUsername ?? "User"}'s Workspace`);
       await this.workspaceRepo.addMember(workspace.id, user.id, "owner", "accepted");
       await this.authRepo.addIdentity({
