@@ -12,11 +12,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useRepositoryMutations, type NotifierLog } from "@/hooks/use-repositories";
+import { useRepositoryMutations, type NotifierLog, type RepoConfigNotification } from "@/hooks/use-repositories";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -77,44 +84,56 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
 };
 
 interface NotifierLogsModalProps {
-  notificationId: number | null;
+  notifications: RepoConfigNotification[];
   repoName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function NotifierLogsModal({
-  notificationId,
+  notifications,
   repoName,
   open,
   onOpenChange,
 }: NotifierLogsModalProps) {
   const { getNotifierLogs } = useRepositoryMutations();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [logs, setLogs] = useState<NotifierLog[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Auto-select first notification when modal opens
   useEffect(() => {
-    if (!open || !notificationId) return;
+    if (open && notifications.length > 0) {
+      setSelectedId(notifications[0].id);
+    }
+    if (!open) {
+      setSelectedId(null);
+      setOffset(0);
+      setLogs([]);
+      setTotal(0);
+    }
+  }, [open, notifications]);
+
+  // Fetch logs when selection or page changes
+  useEffect(() => {
+    if (!open || !selectedId) return;
 
     setIsLoading(true);
-    getNotifierLogs(notificationId, PAGE_SIZE, offset)
+    getNotifierLogs(selectedId, PAGE_SIZE, offset)
       .then((result) => {
         setLogs(result.logs);
         setTotal(result.total);
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load logs"))
       .finally(() => setIsLoading(false));
-  }, [open, notificationId, offset, getNotifierLogs]);
+  }, [open, selectedId, offset, getNotifierLogs]);
 
-  useEffect(() => {
-    if (!open) {
-      setOffset(0);
-      setLogs([]);
-      setTotal(0);
-    }
-  }, [open]);
+  const handleChannelChange = (id: string) => {
+    setSelectedId(Number(id));
+    setOffset(0);
+  };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -129,6 +148,25 @@ export function NotifierLogsModal({
             <span className="font-medium text-foreground">{repoName}</span>
           </DialogDescription>
         </DialogHeader>
+
+        {notifications.length > 1 && (
+          <Select
+            value={selectedId?.toString() ?? ""}
+            onValueChange={handleChannelChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select channel" />
+            </SelectTrigger>
+            <SelectContent>
+              {notifications.map((n) => (
+                <SelectItem key={n.id} value={n.id.toString()}>
+                  {n.notificationPlatform} &middot; #{n.channelId.slice(0, 12)}
+                  {n.tags.length > 0 && ` (${n.tags.join(", ")})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <div className="max-h-[60vh] overflow-y-auto">
           {isLoading ? (

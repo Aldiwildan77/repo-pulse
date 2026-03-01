@@ -15,9 +15,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -28,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RepoStatusBadge } from "./repo-status-badge";
 import { NotificationSettingsModal } from "./notification-settings-modal";
 import { NotifierLogsModal } from "./notifier-logs-modal";
@@ -54,23 +52,27 @@ export function RepoList({
 }: RepoListProps) {
   const navigate = useNavigate();
   const [notifModal, setNotifModal] = useState<{
-    notificationId: number;
+    notifications: RepoConfigNotification[];
     name: string;
   } | null>(null);
   const [logsModal, setLogsModal] = useState<{
-    notificationId: number;
+    notifications: RepoConfigNotification[];
+    name: string;
+  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
     name: string;
   } | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
 
-  const openNotifModal = (notif: RepoConfigNotification, repoName: string) => {
-    setNotifModal({ notificationId: notif.id, name: `${repoName} (${notif.notificationPlatform} #${notif.channelId.slice(0, 8)})` });
+  const openNotifModal = (repo: RepoConfig) => {
+    setNotifModal({ notifications: repo.notifications, name: repo.providerRepo });
   };
 
-  const openLogsModal = (notif: RepoConfigNotification, repoName: string) => {
-    setLogsModal({ notificationId: notif.id, name: `${repoName} (${notif.notificationPlatform} #${notif.channelId.slice(0, 8)})` });
+  const openLogsModal = (repo: RepoConfig) => {
+    setLogsModal({ notifications: repo.notifications, name: repo.providerRepo });
   };
 
   if (repositories.length === 0 && offset === 0) {
@@ -87,6 +89,43 @@ export function RepoList({
       </div>
     );
   }
+
+  const renderMenu = (repo: RepoConfig) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {repo.notifications.length > 0 && (
+          <>
+            <DropdownMenuItem onClick={() => openNotifModal(repo)}>
+              <Bell className="mr-2 h-4 w-4" />
+              Notification Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openLogsModal(repo)}>
+              <ScrollText className="mr-2 h-4 w-4" />
+              View Logs
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuItem
+          onClick={() => navigate(`/repositories/${repo.id}/edit`)}
+        >
+          <Pencil className="mr-2 h-4 w-4" />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-destructive"
+          onClick={() => setDeleteTarget({ id: repo.id, name: repo.providerRepo })}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <>
@@ -130,87 +169,7 @@ export function RepoList({
                     onToggle={(active) => onToggleActive(repo.id, active)}
                   />
                 </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {repo.notifications.length === 1 ? (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => openNotifModal(repo.notifications[0], repo.providerRepo)}
-                          >
-                            <Bell className="mr-2 h-4 w-4" />
-                            Notification Settings
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openLogsModal(repo.notifications[0], repo.providerRepo)}
-                          >
-                            <ScrollText className="mr-2 h-4 w-4" />
-                            View Logs
-                          </DropdownMenuItem>
-                        </>
-                      ) : repo.notifications.length > 1 ? (
-                        <>
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                              <Bell className="mr-2 h-4 w-4" />
-                              Notification Settings
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                              {repo.notifications.map((n) => (
-                                <DropdownMenuItem
-                                  key={n.id}
-                                  onClick={() => openNotifModal(n, repo.providerRepo)}
-                                >
-                                  {n.notificationPlatform} #{n.channelId.slice(0, 8)}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                              <ScrollText className="mr-2 h-4 w-4" />
-                              View Logs
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                              {repo.notifications.map((n) => (
-                                <DropdownMenuItem
-                                  key={n.id}
-                                  onClick={() => openLogsModal(n, repo.providerRepo)}
-                                >
-                                  {n.notificationPlatform} #{n.channelId.slice(0, 8)}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        </>
-                      ) : null}
-                      <DropdownMenuItem
-                        onClick={() =>
-                          navigate(`/repositories/${repo.id}/edit`)
-                        }
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => onDelete(repo.id)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                <TableCell>{renderMenu(repo)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -241,79 +200,7 @@ export function RepoList({
                 onToggle={(active) => onToggleActive(repo.id, active)}
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {repo.notifications.length === 1 ? (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => openNotifModal(repo.notifications[0], repo.providerRepo)}
-                    >
-                      <Bell className="mr-2 h-4 w-4" />
-                      Notification Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => openLogsModal(repo.notifications[0], repo.providerRepo)}
-                    >
-                      <ScrollText className="mr-2 h-4 w-4" />
-                      View Logs
-                    </DropdownMenuItem>
-                  </>
-                ) : repo.notifications.length > 1 ? (
-                  <>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Bell className="mr-2 h-4 w-4" />
-                        Notification Settings
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {repo.notifications.map((n) => (
-                          <DropdownMenuItem
-                            key={n.id}
-                            onClick={() => openNotifModal(n, repo.providerRepo)}
-                          >
-                            {n.notificationPlatform} #{n.channelId.slice(0, 8)}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <ScrollText className="mr-2 h-4 w-4" />
-                        View Logs
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {repo.notifications.map((n) => (
-                          <DropdownMenuItem
-                            key={n.id}
-                            onClick={() => openLogsModal(n, repo.providerRepo)}
-                          >
-                            {n.notificationPlatform} #{n.channelId.slice(0, 8)}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                ) : null}
-                <DropdownMenuItem
-                  onClick={() => navigate(`/repositories/${repo.id}/edit`)}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => onDelete(repo.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {renderMenu(repo)}
           </div>
         ))}
       </div>
@@ -353,7 +240,7 @@ export function RepoList({
       )}
 
       <NotificationSettingsModal
-        notificationId={notifModal?.notificationId ?? null}
+        notifications={notifModal?.notifications ?? []}
         repoName={notifModal?.name ?? ""}
         open={!!notifModal}
         onOpenChange={(open) => {
@@ -362,12 +249,24 @@ export function RepoList({
       />
 
       <NotifierLogsModal
-        notificationId={logsModal?.notificationId ?? null}
+        notifications={logsModal?.notifications ?? []}
         repoName={logsModal?.name ?? ""}
         open={!!logsModal}
         onOpenChange={(open) => {
           if (!open) setLogsModal(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete Repository"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This will remove all notification configurations and cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => { if (deleteTarget) return onDelete(deleteTarget.id); }}
       />
     </>
   );

@@ -9,13 +9,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRepositoryMutations, type RepoEventToggle } from "@/hooks/use-repositories";
+import { useRepositoryMutations, type RepoConfigNotification, type RepoEventToggle } from "@/hooks/use-repositories";
 import {
   GitPullRequest,
   GitMerge,
@@ -40,31 +47,48 @@ const EVENT_TYPES: { key: string; label: string; description: string; icon: Luci
 ];
 
 interface NotificationSettingsModalProps {
-  notificationId: number | null;
+  notifications: RepoConfigNotification[];
   repoName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function NotificationSettingsModal({
-  notificationId,
+  notifications,
   repoName,
   open,
   onOpenChange,
 }: NotificationSettingsModalProps) {
   const { getEventToggles, upsertEventToggle } = useRepositoryMutations();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [toggles, setToggles] = useState<RepoEventToggle[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Auto-select first notification when modal opens
   useEffect(() => {
-    if (!open || !notificationId) return;
+    if (open && notifications.length > 0) {
+      setSelectedId(notifications[0].id);
+    }
+    if (!open) {
+      setSelectedId(null);
+      setToggles([]);
+    }
+  }, [open, notifications]);
+
+  // Fetch toggles when selection changes
+  useEffect(() => {
+    if (!open || !selectedId) return;
 
     setIsLoading(true);
-    getEventToggles(notificationId)
+    getEventToggles(selectedId)
       .then(setToggles)
       .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load notification settings"))
       .finally(() => setIsLoading(false));
-  }, [open, notificationId, getEventToggles]);
+  }, [open, selectedId, getEventToggles]);
+
+  const handleChannelChange = (id: string) => {
+    setSelectedId(Number(id));
+  };
 
   const getToggleValue = (eventType: string): boolean => {
     const toggle = toggles.find((t) => t.eventType === eventType);
@@ -72,7 +96,7 @@ export function NotificationSettingsModal({
   };
 
   const handleToggle = async (eventType: string, isEnabled: boolean) => {
-    if (!notificationId) return;
+    if (!selectedId) return;
 
     setToggles((prev) => {
       const existing = prev.find((t) => t.eventType === eventType);
@@ -81,11 +105,11 @@ export function NotificationSettingsModal({
           t.eventType === eventType ? { ...t, isEnabled } : t,
         );
       }
-      return [...prev, { id: 0, repoConfigNotificationId: notificationId, eventType, isEnabled }];
+      return [...prev, { id: 0, repoConfigNotificationId: selectedId, eventType, isEnabled }];
     });
 
     try {
-      await upsertEventToggle(notificationId, eventType, isEnabled);
+      await upsertEventToggle(selectedId, eventType, isEnabled);
     } catch (err) {
       setToggles((prev) =>
         prev.map((t) =>
@@ -107,6 +131,25 @@ export function NotificationSettingsModal({
             All events are enabled by default.
           </DialogDescription>
         </DialogHeader>
+
+        {notifications.length > 1 && (
+          <Select
+            value={selectedId?.toString() ?? ""}
+            onValueChange={handleChannelChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select channel" />
+            </SelectTrigger>
+            <SelectContent>
+              {notifications.map((n) => (
+                <SelectItem key={n.id} value={n.id.toString()}>
+                  {n.notificationPlatform} &middot; #{n.channelId.slice(0, 12)}
+                  {n.tags.length > 0 && ` (${n.tags.join(", ")})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <div className="space-y-2 py-2">
           {isLoading ? (
