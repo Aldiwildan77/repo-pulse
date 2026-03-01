@@ -71,6 +71,8 @@ export async function apiClient<T>(
       const parsed = JSON.parse(body);
       if (parsed.message) {
         message = parsed.message;
+      } else if (parsed.error) {
+        message = parsed.error;
       }
     } catch {
       // body is not JSON, use as-is
