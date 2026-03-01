@@ -139,7 +139,7 @@ export class AdminHandler {
       Body: {
         providerType: SourceProvider;
         providerRepo: string;
-        notifications?: { platform: NotificationPlatform; channelId: string; tags?: string[] }[];
+        notifications?: { platform: NotificationPlatform; channelId: string; guildId?: string | null; tags?: string[] }[];
       };
     }>,
     reply: FastifyReply,
@@ -203,7 +203,7 @@ export class AdminHandler {
   private async createNotification(
     request: FastifyRequest<{
       Params: { id: string };
-      Body: { platform: NotificationPlatform; channelId: string; tags?: string[] };
+      Body: { platform: NotificationPlatform; channelId: string; guildId?: string | null; tags?: string[] };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
@@ -215,7 +215,7 @@ export class AdminHandler {
   private async updateNotification(
     request: FastifyRequest<{
       Params: { notificationId: string };
-      Body: { channelId?: string; isActive?: boolean; tags?: string[] };
+      Body: { channelId?: string; guildId?: string | null; isActive?: boolean; tags?: string[] };
     }>,
     reply: FastifyReply,
   ): Promise<void> {

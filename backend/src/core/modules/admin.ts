@@ -73,7 +73,7 @@ export class AdminModule {
     providerType: SourceProvider;
     providerRepo: string;
     claimedByUserId: number;
-    notifications?: { platform: NotificationPlatform; channelId: string; tags?: string[] }[];
+    notifications?: { platform: NotificationPlatform; channelId: string; guildId?: string | null; tags?: string[] }[];
   }): Promise<RepoConfigWithNotifications> {
     const config = await this.repoConfigRepo.create({
       workspaceId: data.workspaceId,
@@ -89,6 +89,7 @@ export class AdminModule {
           repoConfigId: config.id,
           notificationPlatform: n.platform,
           channelId: n.channelId,
+          guildId: n.guildId ?? null,
         });
         if (n.tags && n.tags.length > 0) {
           await this.repoConfigNotificationRepo.setTagsForNotification(notif.id, n.tags);
@@ -104,12 +105,14 @@ export class AdminModule {
   async createNotification(repoConfigId: number, data: {
     platform: NotificationPlatform;
     channelId: string;
+    guildId?: string | null;
     tags?: string[];
   }): Promise<RepoConfigNotification> {
     const notif = await this.repoConfigNotificationRepo.create({
       repoConfigId,
       notificationPlatform: data.platform,
       channelId: data.channelId,
+      guildId: data.guildId ?? null,
     });
     if (data.tags && data.tags.length > 0) {
       await this.repoConfigNotificationRepo.setTagsForNotification(notif.id, data.tags);
@@ -120,6 +123,7 @@ export class AdminModule {
 
   async updateNotification(notificationId: number, data: {
     channelId?: string;
+    guildId?: string | null;
     isActive?: boolean;
     tags?: string[];
   }): Promise<void> {

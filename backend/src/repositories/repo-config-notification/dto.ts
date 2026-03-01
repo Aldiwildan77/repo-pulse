@@ -7,6 +7,7 @@ export function toRepoConfigNotification(row: RepoConfigNotificationRow): RepoCo
     repoConfigId: row.repo_config_id,
     notificationPlatform: row.notification_platform,
     channelId: row.channel_id,
+    guildId: row.guild_id ?? null,
     isActive: row.is_active,
     tags: [],
     createdAt: row.created_at,

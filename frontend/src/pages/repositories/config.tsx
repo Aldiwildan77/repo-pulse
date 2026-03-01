@@ -76,7 +76,7 @@ export function RepositoryConfigPage() {
         state[p].enabled = true;
         state[p].mappings.push({
           channelId: notif.channelId,
-          guildId: null,
+          guildId: notif.guildId ?? null,
           tags: notif.tags ?? [],
           existingNotificationId: notif.id,
         });
@@ -102,6 +102,7 @@ export function RepositoryConfigPage() {
               // Update existing notification
               await updateNotification(mapping.existingNotificationId, {
                 channelId: mapping.channelId,
+                guildId: mapping.guildId,
                 tags: mapping.tags,
               });
             } else {
@@ -109,6 +110,7 @@ export function RepositoryConfigPage() {
               await createNotification(repository.id, {
                 platform,
                 channelId: mapping.channelId,
+                guildId: mapping.guildId,
                 tags: mapping.tags.length > 0 ? mapping.tags : undefined,
               });
             }

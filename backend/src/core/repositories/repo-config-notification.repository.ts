@@ -5,6 +5,7 @@ export interface RepoConfigNotificationRepository {
     repoConfigId: number;
     notificationPlatform: NotificationPlatform;
     channelId: string;
+    guildId?: string | null;
   }): Promise<RepoConfigNotification>;
 
   findById(id: number): Promise<RepoConfigNotification | null>;
@@ -15,7 +16,7 @@ export interface RepoConfigNotificationRepository {
 
   findActiveByRepo(providerRepo: string): Promise<RepoConfigNotification[]>;
 
-  update(id: number, data: { channelId?: string; isActive?: boolean }): Promise<void>;
+  update(id: number, data: { channelId?: string; guildId?: string | null; isActive?: boolean }): Promise<void>;
 
   delete(id: number): Promise<void>;
 

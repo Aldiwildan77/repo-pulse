@@ -9,6 +9,7 @@ export interface RepoConfigNotification {
   repoConfigId: number;
   notificationPlatform: Platform;
   channelId: string;
+  guildId: string | null;
   tags: string[];
   isActive: boolean;
   createdAt: string;
@@ -54,7 +55,7 @@ export interface RepoConfigInput {
   workspaceId: number;
   providerType: SourceProvider;
   providerRepo: string;
-  notifications: { platform: Platform; channelId: string; tags?: string[] }[];
+  notifications: { platform: Platform; channelId: string; guildId?: string | null; tags?: string[] }[];
 }
 
 export function useRepositories(
@@ -147,7 +148,7 @@ export function useRepositoryMutations() {
     }
   }, []);
 
-  const createNotification = useCallback(async (repoConfigId: number, data: { platform: Platform; channelId: string; tags?: string[] }) => {
+  const createNotification = useCallback(async (repoConfigId: number, data: { platform: Platform; channelId: string; guildId?: string | null; tags?: string[] }) => {
     try {
       const notif = await apiClient<RepoConfigNotification>(`/api/repos/config/${repoConfigId}/notifications`, {
         method: "POST",
@@ -160,7 +161,7 @@ export function useRepositoryMutations() {
     }
   }, []);
 
-  const updateNotification = useCallback(async (notificationId: number, data: { channelId?: string; isActive?: boolean; tags?: string[] }) => {
+  const updateNotification = useCallback(async (notificationId: number, data: { channelId?: string; guildId?: string | null; isActive?: boolean; tags?: string[] }) => {
     try {
       await apiClient(`/api/repos/config/notifications/${notificationId}`, {
         method: "PATCH",

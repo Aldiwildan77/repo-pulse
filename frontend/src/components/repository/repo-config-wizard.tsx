@@ -122,7 +122,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
     setIsSubmitting(true);
     try {
       // Build notifications array from all enabled platforms
-      const notifications: { platform: 'discord' | 'slack'; channelId: string; tags?: string[] }[] = [];
+      const notifications: { platform: 'discord' | 'slack'; channelId: string; guildId?: string | null; tags?: string[] }[] = [];
       for (const platform of ['discord', 'slack'] as const) {
         if (!platformConfigs[platform].enabled) continue;
         for (const mapping of platformConfigs[platform].mappings) {
@@ -130,6 +130,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
           notifications.push({
             platform,
             channelId: mapping.channelId,
+            guildId: mapping.guildId,
             tags: mapping.tags.length > 0 ? mapping.tags : undefined,
           });
         }

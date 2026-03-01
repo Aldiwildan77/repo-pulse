@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { Database } from "../../infrastructure/database/types.js";
 import type { RepoConfigNotificationRepository } from "../../core/repositories/repo-config-notification.repository.js";
 import type { RepoConfigNotification, RepoEventToggle, NotificationPlatform } from "../../core/entities/index.js";
@@ -11,6 +11,7 @@ export class KyselyRepoConfigNotificationRepository implements RepoConfigNotific
     repoConfigId: number;
     notificationPlatform: NotificationPlatform;
     channelId: string;
+    guildId?: string | null;
   }): Promise<RepoConfigNotification> {
     const row = await this.db
       .insertInto("repo_config_notifications")
@@ -18,6 +19,7 @@ export class KyselyRepoConfigNotificationRepository implements RepoConfigNotific
         repo_config_id: data.repoConfigId,
         notification_platform: data.notificationPlatform,
         channel_id: data.channelId,
+        guild_id: data.guildId ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -61,7 +63,7 @@ export class KyselyRepoConfigNotificationRepository implements RepoConfigNotific
       .selectFrom("repo_config_notifications")
       .innerJoin("repo_configs", "repo_configs.id", "repo_config_notifications.repo_config_id")
       .selectAll("repo_config_notifications")
-      .where("repo_configs.provider_repo", "=", providerRepo)
+      .where(sql<string>`lower(${sql.ref("repo_configs.provider_repo")})`, "=", providerRepo.toLowerCase())
       .where("repo_configs.is_active", "=", true)
       .where("repo_config_notifications.is_active", "=", true)
       .execute();
@@ -69,9 +71,10 @@ export class KyselyRepoConfigNotificationRepository implements RepoConfigNotific
     return rows.map(toRepoConfigNotification);
   }
 
-  async update(id: number, data: { channelId?: string; isActive?: boolean }): Promise<void> {
+  async update(id: number, data: { channelId?: string; guildId?: string | null; isActive?: boolean }): Promise<void> {
     const updates: Record<string, unknown> = { updated_at: new Date() };
     if (data.channelId !== undefined) updates.channel_id = data.channelId;
+    if (data.guildId !== undefined) updates.guild_id = data.guildId;
     if (data.isActive !== undefined) updates.is_active = data.isActive;
 
     await this.db

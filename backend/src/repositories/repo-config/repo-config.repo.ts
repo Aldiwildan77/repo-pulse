@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { Database } from "../../infrastructure/database/types.js";
 import type { RepoConfigRepository } from "../../core/repositories/repo-config.repository.js";
 import type { RepoConfig, SourceProvider } from "../../core/entities/index.js";
@@ -41,7 +41,7 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     const rows = await this.db
       .selectFrom("repo_configs")
       .selectAll()
-      .where("provider_repo", "=", providerRepo)
+      .where(sql<string>`lower(${sql.ref("provider_repo")})`, "=", providerRepo.toLowerCase())
       .execute();
 
     return rows.map(toRepoConfig);
@@ -51,7 +51,7 @@ export class KyselyRepoConfigRepository implements RepoConfigRepository {
     const rows = await this.db
       .selectFrom("repo_configs")
       .selectAll()
-      .where("provider_repo", "=", providerRepo)
+      .where(sql<string>`lower(${sql.ref("provider_repo")})`, "=", providerRepo.toLowerCase())
       .where("is_active", "=", true)
       .execute();
 

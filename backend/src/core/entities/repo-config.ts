@@ -18,6 +18,7 @@ export interface RepoConfigNotification {
   repoConfigId: number;
   notificationPlatform: NotificationPlatform;
   channelId: string;
+  guildId: string | null;
   isActive: boolean;
   tags: string[];
   createdAt: Date;

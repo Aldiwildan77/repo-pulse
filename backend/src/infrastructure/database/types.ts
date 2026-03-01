@@ -158,6 +158,7 @@ export interface RepoConfigNotificationTable {
   repo_config_id: number;
   notification_platform: NotificationPlatform;
   channel_id: string;
+  guild_id: string | null;
   is_active: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
