@@ -86,16 +86,14 @@ export class NotifierModule {
   ) {}
 
   private filterNotificationsByLabels(notifications: RepoConfigNotification[], labels: string[]): RepoConfigNotification[] {
-    const notifyTags = labels
-      .filter((l) => l.startsWith("notify:"))
-      .map((l) => l.slice("notify:".length));
+    const labelSet = new Set(labels.map((l) => l.toLowerCase()));
 
-    if (notifyTags.length === 0) {
-      return notifications.filter((n) => n.tags.length === 0);
-    }
-
-    const tagSet = new Set(notifyTags);
-    return notifications.filter((n) => n.tags.length === 0 || n.tags.some((t) => tagSet.has(t)));
+    return notifications.filter((n) => {
+      // No tags configured → catch-all, always send
+      if (n.tags.length === 0) return true;
+      // Has tags → only send if any tag matches a PR label
+      return n.tags.some((t) => labelSet.has(t.toLowerCase()));
+    });
   }
 
   private deduplicateByChannel(notifications: RepoConfigNotification[]): RepoConfigNotification[] {
@@ -236,17 +234,28 @@ export class NotifierModule {
   }
 
   async handlePrLabelChanged(event: PrLabelChangedEvent): Promise<void> {
-    const notifications = await this.notificationRepo.findActiveByRepo(event.repo);
+    // Only notify channels that received the original PR notification
+    const deliveries = await this.deliveryRepo.findByProviderEntity(String(event.prId), event.repo);
 
-    if (notifications.length === 0) {
-      this.logger.warn("No active notifications found for label notification", {
+    if (deliveries.length === 0) {
+      this.logger.info("Skipping label notification — PR was not sent to any channel", {
         repo: event.repo,
         prId: event.prId,
+        label: event.label.name,
       });
       return;
     }
 
+    const deliveredChannels = new Set(
+      deliveries.map((d) => `${d.notificationPlatform}:${d.providerChannelId}`),
+    );
+
+    const notifications = await this.notificationRepo.findActiveByRepo(event.repo);
+
     for (const notif of notifications) {
+      const key = `${notif.notificationPlatform}:${notif.channelId}`;
+      if (!deliveredChannels.has(key)) continue;
+
       if (!(await this.isEventEnabled(notif, "pr_label"))) {
         await this.logEvent(notif, "pr_label", "skipped", `PR #${event.prId} label ${event.action} (disabled)`, String(event.prId), event.prId);
         continue;
