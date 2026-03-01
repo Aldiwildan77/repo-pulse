@@ -492,7 +492,7 @@ export class NotifierModule {
     // No-op: repos are fetched directly from provider APIs
   }
 
-  async recordEvent(eventId: string, eventType: string): Promise<void> {
-    await this.webhookEventRepo.create({ eventId, eventType });
+  async recordEvent(eventId: string, eventType: string, payload?: unknown): Promise<void> {
+    await this.webhookEventRepo.create({ eventId, eventType, payload });
   }
 }

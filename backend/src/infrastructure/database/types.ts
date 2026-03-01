@@ -216,6 +216,7 @@ export interface WebhookEventLogTable {
   id: Generated<number>;
   event_id: string;
   event_type: string;
+  payload: unknown | null;
   processed_at: Generated<Date>;
 }
 

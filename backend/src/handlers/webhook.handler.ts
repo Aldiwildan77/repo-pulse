@@ -78,9 +78,10 @@ export class WebhookHandler {
     reply.code(202).send({ status: "accepted" });
 
     const event = provider.parseEvent(request);
+    const payload = request.body;
 
     setImmediate(() => {
-      this.processEvent(event, idempotencyKey).catch((err) => {
+      this.processEvent(event, idempotencyKey, payload).catch((err) => {
         this.logger.error("Failed to process webhook event", {
           error: String(err),
           deliveryId: idempotencyKey,
@@ -90,8 +91,8 @@ export class WebhookHandler {
     });
   }
 
-  private async processEvent(event: WebhookEvent, idempotencyKey: string): Promise<void> {
-    await this.notifier.recordEvent(idempotencyKey, event.kind);
+  private async processEvent(event: WebhookEvent, idempotencyKey: string, payload?: unknown): Promise<void> {
+    await this.notifier.recordEvent(idempotencyKey, event.kind, payload);
 
     switch (event.kind) {
       case "pr_opened":
