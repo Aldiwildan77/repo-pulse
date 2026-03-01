@@ -1,11 +1,12 @@
 import { NavLink } from "react-router";
-import { LayoutDashboard, GitFork, User, Menu, X } from "lucide-react";
+import { LayoutDashboard, Building2, GitFork, User, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/workspaces", label: "Workspaces", icon: Building2 },
   { to: "/repositories", label: "Repositories", icon: GitFork },
   { to: "/profile", label: "Profile", icon: User },
 ];

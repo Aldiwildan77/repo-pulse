@@ -12,4 +12,12 @@ export interface WorkspaceRepository {
   findMembers(workspaceId: number): Promise<WorkspaceMember[]>;
 
   findMemberByUserAndWorkspace(userId: number, workspaceId: number): Promise<WorkspaceMember | null>;
+
+  update(id: number, data: { name: string }): Promise<Workspace>;
+
+  delete(id: number): Promise<void>;
+
+  updateMemberRole(memberId: number, role: WorkspaceRole): Promise<WorkspaceMember>;
+
+  removeMember(memberId: number): Promise<void>;
 }

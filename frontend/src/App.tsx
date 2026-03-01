@@ -11,6 +11,8 @@ import { RepositoriesPage } from "@/pages/repositories";
 import { RepositoryConfigPage } from "@/pages/repositories/config";
 import { VerifyTotpPage } from "@/pages/verify-totp";
 import { AuthErrorPage } from "@/pages/auth-error";
+import { WorkspacesPage } from "@/pages/workspaces";
+import { WorkspaceDetailPage } from "@/pages/workspaces/detail";
 import { NotFoundPage } from "@/pages/not-found";
 import { StatusPage } from "@/pages/status";
 import { PrivacyPolicyPage } from "@/pages/privacy-policy";
@@ -33,6 +35,8 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/workspaces" element={<WorkspacesPage />} />
+          <Route path="/workspaces/:workspaceId" element={<WorkspaceDetailPage />} />
           <Route path="/repositories" element={<RepositoriesPage />} />
           <Route path="/repositories/new" element={<RepositoryConfigPage />} />
           <Route path="/repositories/:repoId/edit" element={<RepositoryConfigPage />} />

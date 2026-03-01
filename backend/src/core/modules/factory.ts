@@ -10,6 +10,7 @@ import { AuthModule } from "./auth.js";
 import { AdminModule } from "./admin.js";
 import { TotpModule } from "./totp.js";
 import { FeedbackModule } from "./feedback.js";
+import { WorkspaceModule } from "./workspace.js";
 import { GitHubApiClient } from "../../infrastructure/auth/github-api.js";
 
 export class ModuleFactory {
@@ -18,6 +19,7 @@ export class ModuleFactory {
   readonly admin: AdminModule;
   readonly totp: TotpModule;
   readonly feedback: FeedbackModule;
+  readonly workspace: WorkspaceModule;
 
   constructor(config: Config, repos: RepositoryFactory, infra: InfrastructureFactory) {
     const pushers = new Map<NotificationPlatform, Pusher>([
@@ -60,5 +62,6 @@ export class ModuleFactory {
     this.admin.setAuthModule(this.auth);
 
     this.feedback = new FeedbackModule(repos.feedback);
+    this.workspace = new WorkspaceModule(repos.workspace, repos.user);
   }
 }

@@ -76,4 +76,41 @@ export class KyselyWorkspaceRepository implements WorkspaceRepository {
 
     return row ? toWorkspaceMember(row) : null;
   }
+
+  async update(id: number, data: { name: string }): Promise<Workspace> {
+    const row = await this.db
+      .updateTable("workspaces")
+      .set({ name: data.name, updated_at: new Date() })
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return toWorkspace(row);
+  }
+
+  async delete(id: number): Promise<void> {
+    await this.db
+      .deleteFrom("workspaces")
+      .where("id", "=", id)
+      .execute();
+  }
+
+  async updateMemberRole(memberId: number, role: WorkspaceRole): Promise<WorkspaceMember> {
+    const row = await this.db
+      .updateTable("workspace_members")
+      .set({ role, updated_at: new Date() })
+      .where("id", "=", memberId)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return toWorkspaceMember(row);
+  }
+
+  async removeMember(memberId: number): Promise<void> {
+    await this.db
+      .updateTable("workspace_members")
+      .set({ status: "removed", updated_at: new Date() })
+      .where("id", "=", memberId)
+      .execute();
+  }
 }
