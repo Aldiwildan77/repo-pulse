@@ -150,14 +150,34 @@ export class NotifierModule {
 
   async handlePrOpened(event: PrOpenedEvent): Promise<void> {
     const allNotifications = await this.notificationRepo.findActiveByRepo(event.repo);
+
+    if (allNotifications.length === 0) {
+      this.logger.warn("No active notification configs found for repo", {
+        repo: event.repo,
+        prId: event.prId,
+      });
+      return;
+    }
+
     await this.populateTags(allNotifications);
+
+    this.logger.info("Found notifications for PR", {
+      repo: event.repo,
+      prId: event.prId,
+      total: allNotifications.length,
+      labels: event.labels,
+      notificationTags: allNotifications.map((n) => ({ id: n.id, tags: n.tags, channelId: n.channelId })),
+    });
+
     const filtered = this.filterNotificationsByLabels(allNotifications, event.labels);
     const notifications = this.deduplicateByChannel(filtered);
 
     if (notifications.length === 0) {
-      this.logger.warn("No active notifications found for PR", {
+      this.logger.warn("All notifications filtered out by label matching", {
         repo: event.repo,
         prId: event.prId,
+        labels: event.labels,
+        totalBeforeFilter: allNotifications.length,
       });
       return;
     }
