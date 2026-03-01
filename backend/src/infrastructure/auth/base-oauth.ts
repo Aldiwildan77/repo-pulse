@@ -54,7 +54,7 @@ export abstract class BaseOAuthService {
     const response = await fetch(this.providerConfig.tokenUrl, {
       method: "POST",
       headers: useForm
-        ? { "Content-Type": "application/x-www-form-urlencoded" }
+        ? { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }
         : { "Content-Type": "application/json", Accept: "application/json" },
       body: useForm ? new URLSearchParams(payload) : JSON.stringify(payload),
     });
@@ -64,10 +64,12 @@ export abstract class BaseOAuthService {
       refresh_token?: string;
       expires_in?: number;
       error?: string;
+      error_description?: string;
     };
 
     if (!data.access_token) {
-      throw new Error(`${this.providerName} OAuth error: ${data.error ?? "no access token"}`);
+      const detail = data.error_description ?? data.error ?? "no access token";
+      throw new Error(`${this.providerName} OAuth error: ${detail}`);
     }
 
     return {
