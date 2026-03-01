@@ -86,6 +86,9 @@ export class NotifierModule {
   ) {}
 
   private filterNotificationsByLabels(notifications: RepoConfigNotification[], labels: string[]): RepoConfigNotification[] {
+    // PR has no labels → no filtering, send to all channels
+    if (labels.length === 0) return notifications;
+
     const labelSet = new Set(labels.map((l) => l.toLowerCase()));
 
     return notifications.filter((n) => {
