@@ -19,8 +19,8 @@ import {
   SourceStepContent,
   MultiPlatformNotificationStep,
 } from "./repo-config-form";
-import { defaultValues, defaultMultiPlatformState, type MultiPlatformState } from "./repo-config-defaults";
-import { useRepositoryMutations, type RepoConfigInput } from "@/hooks/use-repositories";
+import { defaultSourceValues, defaultMultiPlatformState, type MultiPlatformState, type SourceValues } from "./repo-config-defaults";
+import { useRepositoryMutations } from "@/hooks/use-repositories";
 import {
   GitPullRequest,
   GitMerge,
@@ -33,6 +33,7 @@ import {
   Info,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { SourceProvider } from "@/utils/constants";
 
 const STEPS = [
   { label: "Source" },
@@ -59,7 +60,7 @@ const STEP_DESCRIPTIONS = [
 
 interface RepoConfigWizardProps {
   prefilled?: {
-    provider: RepoConfigInput["provider"];
+    providerType: SourceProvider;
     providerRepo: string;
   };
 }
@@ -70,10 +71,9 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const initialStep = prefilled ? 1 : 0;
   const [currentStep, setCurrentStep] = useState(initialStep);
 
-  // Source values (provider + repo) — kept in RepoConfigInput shape for SourceStepContent compat
-  const [sourceValues, setSourceValues] = useState<RepoConfigInput>(() => ({
-    ...defaultValues,
-    ...(prefilled ? { provider: prefilled.provider, providerRepo: prefilled.providerRepo } : {}),
+  const [sourceValues, setSourceValues] = useState<SourceValues>(() => ({
+    ...defaultSourceValues,
+    ...(prefilled ? { providerType: prefilled.providerType, providerRepo: prefilled.providerRepo } : {}),
   }));
 
   // Multi-platform configs
@@ -88,7 +88,7 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
 
   const canGoNext = () => {
     if (currentStep === 0) {
-      return !!sourceValues.provider && !!sourceValues.providerRepo;
+      return !!sourceValues.providerType && !!sourceValues.providerRepo;
     }
     if (currentStep === 1) {
       const hasValidMapping = (['discord', 'slack'] as const).some(
@@ -116,33 +116,40 @@ export function RepoConfigWizard({ prefilled }: RepoConfigWizardProps = {}) {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const createdRepos = [];
+      // Build notifications array from all enabled platforms
+      const notifications: { platform: 'discord' | 'slack'; channelId: string; tags?: string[] }[] = [];
       for (const platform of ['discord', 'slack'] as const) {
         if (!platformConfigs[platform].enabled) continue;
         for (const mapping of platformConfigs[platform].mappings) {
           if (!mapping.channelId) continue;
-          const input: RepoConfigInput = {
-            provider: sourceValues.provider,
-            providerRepo: sourceValues.providerRepo,
+          notifications.push({
             platform,
             channelId: mapping.channelId,
-            tags: mapping.tags,
-          };
-          const repo = await create(input);
-          createdRepos.push(repo);
+            tags: mapping.tags.length > 0 ? mapping.tags : undefined,
+          });
         }
       }
 
+      // Create ONE repo config with all notifications
+      const repo = await create({
+        providerType: sourceValues.providerType,
+        providerRepo: sourceValues.providerRepo,
+        notifications,
+      });
+
+      // Apply event toggles to each notification
       const disabledEvents = Object.entries(eventToggles).filter(
         ([, enabled]) => !enabled,
       );
-      await Promise.all(
-        createdRepos.flatMap((repo) =>
-          disabledEvents.map(([eventType]) =>
-            upsertEventToggle(repo.id, eventType, false),
+      if (disabledEvents.length > 0 && repo.notifications.length > 0) {
+        await Promise.all(
+          repo.notifications.flatMap((notif) =>
+            disabledEvents.map(([eventType]) =>
+              upsertEventToggle(notif.id, eventType, false),
+            ),
           ),
-        ),
-      );
+        );
+      }
 
       navigate("/repositories");
     } catch {

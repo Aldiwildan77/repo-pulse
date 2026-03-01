@@ -8,7 +8,7 @@ export class KyselyWebhookEventRepository implements WebhookEventRepository {
 
   async create(data: { eventId: string; eventType: string }): Promise<WebhookEvent> {
     const row = await this.db
-      .insertInto("webhook_events")
+      .insertInto("webhook_event_logs")
       .values({
         event_id: data.eventId,
         event_type: data.eventType,
@@ -26,7 +26,7 @@ export class KyselyWebhookEventRepository implements WebhookEventRepository {
 
   async existsByEventId(eventId: string): Promise<boolean> {
     const row = await this.db
-      .selectFrom("webhook_events")
+      .selectFrom("webhook_event_logs")
       .select("id")
       .where("event_id", "=", eventId)
       .executeTakeFirst();

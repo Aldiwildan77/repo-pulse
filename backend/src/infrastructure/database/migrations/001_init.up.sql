@@ -10,7 +10,7 @@ CREATE TYPE auth_provider_type AS ENUM (
   'apple',
   'microsoft',
   'slack',
-  'custom'
+  'sso'
 );
 
 CREATE TABLE users (
@@ -26,6 +26,9 @@ CREATE TABLE user_identities (
   provider_user_id varchar(255) NOT NULL,
   provider_email varchar(255),
   provider_username varchar(255),
+  access_token_encrypted text,
+  refresh_token_encrypted text,
+  token_expires_at timestamptz,
   created_at timestamptz DEFAULT NOW() NOT NULL,
   updated_at timestamptz DEFAULT NOW() NOT NULL
 );
@@ -42,6 +45,7 @@ CREATE TABLE user_totp (
   id serial PRIMARY KEY,
   user_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   totp_secret_encrypted text NOT NULL,
+  is_enabled boolean DEFAULT false NOT NULL,
   backup_codes_hash jsonb DEFAULT '[]' :: jsonb NOT NULL,
   created_at timestamptz DEFAULT NOW() NOT NULL,
   updated_at timestamptz DEFAULT NOW() NOT NULL
@@ -235,6 +239,9 @@ CREATE TABLE notifier_logs (
   event_type text NOT NULL,
   status notification_status DEFAULT 'queued' NOT NULL,
   platform notification_platform NOT NULL,
+  provider_entity_type varchar(50) NOT NULL DEFAULT 'pull_request',
+  provider_entity_id varchar(255) NOT NULL,
+  provider_entity_number integer,
   summary text DEFAULT '' :: text NOT NULL,
   error_message text,
   created_at timestamptz DEFAULT NOW() NOT NULL,

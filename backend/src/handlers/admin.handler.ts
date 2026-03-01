@@ -3,7 +3,7 @@ import type { AdminModule } from "../core/modules/admin.js";
 import type { AuthModule } from "../core/modules/auth.js";
 import type { Config } from "../infrastructure/config.js";
 import type { GitLabApiClient } from "../infrastructure/auth/gitlab-api.js";
-import type { Platform } from "../core/entities/index.js";
+import type { NotificationPlatform } from "../core/entities/index.js";
 import type { SourceProvider } from "../core/webhook/webhook-provider.js";
 import type { AuthMiddleware } from "./middleware/auth.middleware.js";
 
@@ -27,11 +27,6 @@ export class AdminHandler {
       handler: this.createConfig.bind(this),
     });
 
-    app.get("/api/repos/:repo/config", {
-      preHandler: this.authMiddleware.preHandler,
-      handler: this.getConfigs.bind(this),
-    });
-
     app.get<{ Params: { id: string } }>("/api/repos/config/:id", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getConfigById.bind(this),
@@ -47,17 +42,33 @@ export class AdminHandler {
       handler: this.deleteConfig.bind(this),
     });
 
-    app.get<{ Params: { id: string } }>("/api/repos/config/:id/toggles", {
+    // Notification-level endpoints
+    app.post("/api/repos/config/:id/notifications", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.createNotification.bind(this),
+    });
+
+    app.patch("/api/repos/config/notifications/:notificationId", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.updateNotification.bind(this),
+    });
+
+    app.delete("/api/repos/config/notifications/:notificationId", {
+      preHandler: this.authMiddleware.preHandler,
+      handler: this.deleteNotification.bind(this),
+    });
+
+    app.get<{ Params: { notificationId: string } }>("/api/repos/config/notifications/:notificationId/toggles", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getEventToggles.bind(this),
     });
 
-    app.put("/api/repos/config/:id/toggles", {
+    app.put("/api/repos/config/notifications/:notificationId/toggles", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.upsertEventToggle.bind(this),
     });
 
-    app.get("/api/repos/config/:id/logs", {
+    app.get("/api/repos/config/notifications/:notificationId/logs", {
       preHandler: this.authMiddleware.preHandler,
       handler: this.getNotifierLogs.bind(this),
     });
@@ -93,6 +104,12 @@ export class AdminHandler {
     });
   }
 
+  private async getWorkspaceId(userId: number): Promise<number> {
+    const workspaceId = await this.auth.getDefaultWorkspaceId(userId);
+    if (!workspaceId) throw new Error("No workspace found");
+    return workspaceId;
+  }
+
   private async getAllConfigs(
     request: FastifyRequest<{
       Querystring: { limit?: string; offset?: string };
@@ -100,6 +117,7 @@ export class AdminHandler {
     reply: FastifyReply,
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
+    const workspaceId = await this.getWorkspaceId(userId);
     const query = request.query as Record<string, string>;
     const limitParam = query.limit;
     const offsetParam = query.offset;
@@ -107,55 +125,38 @@ export class AdminHandler {
     if (limitParam || offsetParam) {
       const limit = Math.min(parseInt(limitParam ?? "20", 10), 100);
       const offset = parseInt(offsetParam ?? "0", 10);
-      const result = await this.admin.getAllRepoConfigsByUserPaginated(userId, limit, offset);
+      const result = await this.admin.getRepoConfigsByWorkspacePaginated(workspaceId, limit, offset);
       reply.send(result);
       return;
     }
 
-    const configs = await this.admin.getAllRepoConfigsByUser(userId);
+    const configs = await this.admin.getRepoConfigsByWorkspace(workspaceId);
     reply.send(configs);
   }
 
   private async createConfig(
     request: FastifyRequest<{
-      Body: { provider: SourceProvider; providerRepo: string; platform: Platform; channelId: string; tags?: string[] };
+      Body: {
+        providerType: SourceProvider;
+        providerRepo: string;
+        notifications?: { platform: NotificationPlatform; channelId: string; tags?: string[] }[];
+      };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const { provider, providerRepo, platform, channelId, tags } = request.body;
+    const { providerType, providerRepo, notifications } = request.body;
     const userId = parseInt(request.userId!, 10);
+    const workspaceId = await this.getWorkspaceId(userId);
 
-    const config = await this.admin.createRepoConfig({ userId, provider, providerRepo, platform, channelId, tags: tags ?? [] });
-
-    if (provider === "gitlab" && this.config.gitlabWebhookSecret) {
-      try {
-        const accessToken = await this.auth.getGitlabTokenForUser(userId);
-        const webhookUrl = this.getGitlabWebhookUrl();
-        const hookId = await this.gitlabApi.createProjectHook(
-          accessToken,
-          providerRepo,
-          webhookUrl,
-          this.config.gitlabWebhookSecret,
-          { merge_requests_events: true, issues_events: true, note_events: true },
-        );
-        await this.admin.updateRepoConfigWebhook(config.id, String(hookId), userId);
-        config.webhookId = String(hookId);
-        config.webhookCreatedBy = userId;
-      } catch {
-        // Webhook creation failed but config was still created
-      }
-    }
+    const config = await this.admin.createRepoConfig({
+      workspaceId,
+      providerType,
+      providerRepo,
+      claimedByUserId: userId,
+      notifications,
+    });
 
     reply.code(201).send(config);
-  }
-
-  private async getConfigs(
-    request: FastifyRequest<{ Params: { repo: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> {
-    const repo = decodeURIComponent(request.params.repo);
-    const configs = await this.admin.getRepoConfigs(repo);
-    reply.send(configs);
   }
 
   private async getConfigById(
@@ -163,9 +164,10 @@ export class AdminHandler {
     reply: FastifyReply,
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
+    const workspaceId = await this.getWorkspaceId(userId);
     const id = parseInt(request.params.id, 10);
     const config = await this.admin.getRepoConfigById(id);
-    if (!config || config.userId !== userId) {
+    if (!config || config.workspaceId !== workspaceId) {
       reply.code(404).send({ error: "Config not found" });
       return;
     }
@@ -175,17 +177,14 @@ export class AdminHandler {
   private async updateConfig(
     request: FastifyRequest<{
       Params: { id: string };
-      Body: {
-        channelId?: string;
-        isActive?: boolean;
-        tags?: string[];
-      };
+      Body: { isActive?: boolean };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
     const userId = parseInt(request.userId!, 10);
+    const workspaceId = await this.getWorkspaceId(userId);
     const id = parseInt(request.params.id, 10);
-    await this.admin.updateRepoConfig(id, userId, request.body);
+    await this.admin.updateRepoConfig(id, workspaceId, request.body);
     reply.code(204).send();
   }
 
@@ -195,67 +194,78 @@ export class AdminHandler {
   ): Promise<void> {
     const id = parseInt(request.params.id, 10);
     const userId = parseInt(request.userId!, 10);
+    const workspaceId = await this.getWorkspaceId(userId);
 
-    const config = await this.admin.getRepoConfigById(id);
-    if (!config || config.userId !== userId) {
-      reply.code(404).send({ error: "Config not found" });
-      return;
-    }
+    await this.admin.deleteRepoConfig(id, workspaceId);
+    reply.code(204).send();
+  }
 
-    if (config.webhookId && config.provider === "gitlab" && config.webhookCreatedBy) {
-      try {
-        const tokenUserId = config.webhookCreatedBy ?? userId;
-        const accessToken = await this.auth.getGitlabTokenForUser(tokenUserId);
-        await this.gitlabApi.deleteProjectHook(
-          accessToken,
-          config.providerRepo,
-          parseInt(config.webhookId, 10),
-        );
-      } catch {
-        // Webhook deletion failed, still proceed with config deletion
-      }
-    }
+  private async createNotification(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: { platform: NotificationPlatform; channelId: string; tags?: string[] };
+    }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const repoConfigId = parseInt(request.params.id, 10);
+    const notif = await this.admin.createNotification(repoConfigId, request.body);
+    reply.code(201).send(notif);
+  }
 
-    await this.admin.deleteRepoConfig(id, userId);
+  private async updateNotification(
+    request: FastifyRequest<{
+      Params: { notificationId: string };
+      Body: { channelId?: string; isActive?: boolean; tags?: string[] };
+    }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const notificationId = parseInt(request.params.notificationId, 10);
+    await this.admin.updateNotification(notificationId, request.body);
+    reply.code(204).send();
+  }
+
+  private async deleteNotification(
+    request: FastifyRequest<{ Params: { notificationId: string } }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const notificationId = parseInt(request.params.notificationId, 10);
+    await this.admin.deleteNotification(notificationId);
     reply.code(204).send();
   }
 
   private async getEventToggles(
-    request: FastifyRequest<{ Params: { id: string } }>,
+    request: FastifyRequest<{ Params: { notificationId: string } }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const userId = parseInt(request.userId!, 10);
-    const id = parseInt(request.params.id, 10);
-    const toggles = await this.admin.getEventToggles(id, userId);
+    const notificationId = parseInt(request.params.notificationId, 10);
+    const toggles = await this.admin.getEventToggles(notificationId);
     reply.send(toggles);
   }
 
   private async upsertEventToggle(
     request: FastifyRequest<{
-      Params: { id: string };
+      Params: { notificationId: string };
       Body: { eventType: string; isEnabled: boolean };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const userId = parseInt(request.userId!, 10);
-    const id = parseInt(request.params.id, 10);
+    const notificationId = parseInt(request.params.notificationId, 10);
     const { eventType, isEnabled } = request.body;
-    await this.admin.upsertEventToggle(id, userId, eventType, isEnabled);
+    await this.admin.upsertEventToggle(notificationId, eventType, isEnabled);
     reply.code(204).send();
   }
 
   private async getNotifierLogs(
     request: FastifyRequest<{
-      Params: { id: string };
+      Params: { notificationId: string };
       Querystring: { limit?: string; offset?: string };
     }>,
     reply: FastifyReply,
   ): Promise<void> {
-    const userId = parseInt(request.userId!, 10);
-    const id = parseInt(request.params.id, 10);
+    const notificationId = parseInt(request.params.notificationId, 10);
     const limit = Math.min(parseInt((request.query as Record<string, string>).limit ?? "50", 10), 100);
     const offset = parseInt((request.query as Record<string, string>).offset ?? "0", 10);
-    const result = await this.admin.getNotifierLogs(id, userId, limit, offset);
+    const result = await this.admin.getNotifierLogs(notificationId, limit, offset);
     reply.send(result);
   }
 
@@ -323,14 +333,5 @@ export class AdminHandler {
   ): Promise<void> {
     const url = this.admin.getDiscordBotInviteUrl();
     reply.send({ url });
-  }
-
-  private getGitlabWebhookUrl(): string {
-    const callbackUrl = this.config.gitlabCallbackUrl;
-    if (callbackUrl) {
-      const origin = new URL(callbackUrl).origin;
-      return `${origin}/api/webhook/gitlab`;
-    }
-    return `${this.config.frontendUrl}/api/webhook/gitlab`;
   }
 }

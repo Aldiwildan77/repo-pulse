@@ -161,7 +161,7 @@ export function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Repository</TableHead>
-                  <TableHead>Platform</TableHead>
+                  <TableHead>Notifications</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -172,7 +172,16 @@ export function DashboardPage() {
                       {repo.providerRepo}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{repo.platform}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {repo.notifications.map((n) => (
+                          <Badge key={n.id} variant="outline" className="text-xs">
+                            {n.notificationPlatform}
+                          </Badge>
+                        ))}
+                        {repo.notifications.length === 0 && (
+                          <span className="text-xs text-muted-foreground">None</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Tooltip>

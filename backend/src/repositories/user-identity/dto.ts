@@ -13,5 +13,6 @@ export function toUserIdentity(row: UserIdentityRow): UserIdentity {
     refreshTokenEncrypted: row.refresh_token_encrypted,
     tokenExpiresAt: row.token_expires_at,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }

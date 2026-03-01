@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
-  useRepositories,
   useRepositoryMutations,
-  type RepoConfigInput,
   type RepoConfig,
 } from "@/hooks/use-repositories";
 import { useApi } from "@/hooks/use-api";
@@ -25,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { ArrowLeft } from "lucide-react";
-import type { Platform } from "@/utils/constants";
+import type { Platform, SourceProvider } from "@/utils/constants";
 
 const providerNames: Record<string, string> = {
   github: "GitHub",
@@ -42,7 +40,7 @@ export function RepositoryConfigPage() {
   const prefilled =
     prefillProvider && prefillRepo
       ? {
-          provider: prefillProvider as RepoConfigInput["provider"],
+          providerType: prefillProvider as SourceProvider,
           providerRepo: prefillRepo,
         }
       : undefined;
@@ -52,8 +50,7 @@ export function RepositoryConfigPage() {
   const { data: repository, isLoading: repoLoading } = useApi<RepoConfig>(
     repoId ? `/api/repos/config/${repoId}` : null,
   );
-  const { repositories: allConfigs, isLoading: allLoading } = useRepositories();
-  const { create, update, remove } = useRepositoryMutations();
+  const { createNotification, updateNotification, deleteNotification } = useRepositoryMutations();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Multi-platform state for edit form
@@ -62,39 +59,33 @@ export function RepositoryConfigPage() {
   );
   const [initialized, setInitialized] = useState(false);
 
-  // Build multi-platform state from loaded configs (group siblings by platform)
+  // Build multi-platform state from loaded repo config's nested notifications
   useEffect(() => {
-    if (!repository || allLoading) return;
-
-    const siblings = allConfigs.filter(
-      (c) =>
-        c.provider === repository.provider &&
-        c.providerRepo === repository.providerRepo,
-    );
+    if (!repository) return;
 
     const state: MultiPlatformState = {
       discord: { enabled: false, mappings: [] },
       slack: { enabled: false, mappings: [] },
     };
 
-    for (const cfg of siblings) {
-      const p = cfg.platform as Platform;
+    for (const notif of repository.notifications) {
+      const p = notif.notificationPlatform as Platform;
       if (p === "discord" || p === "slack") {
         state[p].enabled = true;
         state[p].mappings.push({
-          channelId: cfg.channelId,
+          channelId: notif.channelId,
           guildId: null,
-          tags: cfg.tags ?? [],
-          existingConfigId: cfg.id,
+          tags: notif.tags ?? [],
+          existingNotificationId: notif.id,
         });
       }
     }
 
     setPlatformConfigs(state);
     setInitialized(true);
-  }, [repository, allConfigs, allLoading]);
+  }, [repository]);
 
-  // Diff-based save: compare current mappings against existing configs
+  // Diff-based save: compare current mappings against existing notifications
   const handleSave = async () => {
     if (!repository) return;
     setIsSubmitting(true);
@@ -105,40 +96,35 @@ export function RepositoryConfigPage() {
         if (cfg.enabled) {
           for (const mapping of cfg.mappings) {
             if (!mapping.channelId) continue;
-            if (mapping.existingConfigId) {
-              // Update existing config
-              await update(mapping.existingConfigId, {
+            if (mapping.existingNotificationId) {
+              // Update existing notification
+              await updateNotification(mapping.existingNotificationId, {
                 channelId: mapping.channelId,
                 tags: mapping.tags,
               });
             } else {
-              // Create new config
-              await create({
-                provider: repository.provider,
-                providerRepo: repository.providerRepo,
+              // Create new notification
+              await createNotification(repository.id, {
                 platform,
                 channelId: mapping.channelId,
-                tags: mapping.tags,
+                tags: mapping.tags.length > 0 ? mapping.tags : undefined,
               });
             }
           }
         }
 
-        // Delete configs that were removed or belong to a disabled platform
+        // Delete notifications that were removed or belong to a disabled platform
         const existingIdsInMappings = new Set(
           cfg.mappings
-            .filter((m) => m.existingConfigId)
-            .map((m) => m.existingConfigId!),
+            .filter((m) => m.existingNotificationId)
+            .map((m) => m.existingNotificationId!),
         );
-        const siblingsForPlatform = allConfigs.filter(
-          (c) =>
-            c.provider === repository.provider &&
-            c.providerRepo === repository.providerRepo &&
-            c.platform === platform,
+        const notificationsForPlatform = repository.notifications.filter(
+          (n) => n.notificationPlatform === platform,
         );
-        for (const sibling of siblingsForPlatform) {
-          if (!cfg.enabled || !existingIdsInMappings.has(sibling.id)) {
-            await remove(sibling.id);
+        for (const notif of notificationsForPlatform) {
+          if (!cfg.enabled || !existingIdsInMappings.has(notif.id)) {
+            await deleteNotification(notif.id);
           }
         }
       }
@@ -150,7 +136,7 @@ export function RepositoryConfigPage() {
     }
   };
 
-  if (isEditing && (repoLoading || allLoading || !initialized)) {
+  if (isEditing && (repoLoading || !initialized)) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -203,7 +189,7 @@ export function RepositoryConfigPage() {
               </h3>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">
-                  {providerNames[repository.provider] ?? repository.provider}
+                  {providerNames[repository.providerType] ?? repository.providerType}
                 </Badge>
                 <span className="text-sm font-mono">
                   {repository.providerRepo}

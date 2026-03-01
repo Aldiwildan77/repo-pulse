@@ -11,5 +11,10 @@ export interface UserIdentityRepository {
     providerUserId: string;
     providerEmail?: string | null;
     providerUsername?: string | null;
+    accessTokenEncrypted?: string | null;
+    refreshTokenEncrypted?: string | null;
+    tokenExpiresAt?: Date | null;
   }): Promise<UserIdentity>;
+
+  updateTokens(id: number, accessToken: string, refreshToken: string | null, tokenExpiresAt: Date | null): Promise<void>;
 }

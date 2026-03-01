@@ -1,8 +1,8 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../../infrastructure/database/types.js";
-import type { UserBinding } from "../../core/entities/index.js";
+import type { User } from "../../core/entities/index.js";
 import type { UserIdentity } from "../../core/entities/index.js";
-import { toUserBinding } from "./dto.js";
+import { toUser } from "./dto.js";
 
 function toUserIdentity(row: {
   id: number;
@@ -15,6 +15,7 @@ function toUserIdentity(row: {
   refresh_token_encrypted: string | null;
   token_expires_at: Date | null;
   created_at: Date;
+  updated_at: Date;
 }): UserIdentity {
   return {
     id: row.id,
@@ -27,52 +28,50 @@ function toUserIdentity(row: {
     refreshTokenEncrypted: row.refresh_token_encrypted,
     tokenExpiresAt: row.token_expires_at,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
 export class KyselyAuthRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
-  async createUser(): Promise<UserBinding> {
+  async createUser(): Promise<User> {
     const row = await this.db
-      .insertInto("user_bindings")
-      .values({
-        provider_user_id: null,
-        provider_username: null,
-      })
+      .insertInto("users")
+      .values({})
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    return toUserBinding(row);
+    return toUser(row);
   }
 
-  async findUserById(id: number): Promise<UserBinding | null> {
+  async findUserById(id: number): Promise<User | null> {
     const row = await this.db
-      .selectFrom("user_bindings")
+      .selectFrom("users")
       .selectAll()
       .where("id", "=", id)
       .executeTakeFirst();
 
-    return row ? toUserBinding(row) : null;
+    return row ? toUser(row) : null;
   }
 
-  async findUserByIdentity(provider: string, providerUserId: string): Promise<UserBinding | null> {
+  async findUserByIdentity(provider: string, providerUserId: string): Promise<User | null> {
     const row = await this.db
-      .selectFrom("user_bindings")
-      .innerJoin("user_identities", "user_identities.user_id", "user_bindings.id")
-      .selectAll("user_bindings")
-      .where("user_identities.provider", "=", provider)
+      .selectFrom("users")
+      .innerJoin("user_identities", "user_identities.user_id", "users.id")
+      .selectAll("users")
+      .where("user_identities.provider", "=", provider as any)
       .where("user_identities.provider_user_id", "=", providerUserId)
       .executeTakeFirst();
 
-    return row ? toUserBinding(row) : null;
+    return row ? toUser(row) : null;
   }
 
   async findIdentity(provider: string, providerUserId: string): Promise<UserIdentity | null> {
     const row = await this.db
       .selectFrom("user_identities")
       .selectAll()
-      .where("provider", "=", provider)
+      .where("provider", "=", provider as any)
       .where("provider_user_id", "=", providerUserId)
       .executeTakeFirst();
 
@@ -103,7 +102,7 @@ export class KyselyAuthRepository {
       .insertInto("user_identities")
       .values({
         user_id: data.userId,
-        provider: data.provider,
+        provider: data.provider as any,
         provider_user_id: data.providerUserId,
         provider_email: data.providerEmail ?? null,
         provider_username: data.providerUsername ?? null,
@@ -129,6 +128,7 @@ export class KyselyAuthRepository {
         access_token_encrypted: accessTokenEncrypted,
         refresh_token_encrypted: refreshTokenEncrypted,
         token_expires_at: tokenExpiresAt,
+        updated_at: new Date(),
       })
       .where("id", "=", identityId)
       .execute();
@@ -139,25 +139,9 @@ export class KyselyAuthRepository {
       .selectFrom("user_identities")
       .selectAll()
       .where("user_id", "=", userId)
-      .where("provider", "=", provider)
+      .where("provider", "=", provider as any)
       .executeTakeFirst();
 
     return row ? toUserIdentity(row) : null;
-  }
-
-  async bindDiscord(userId: number, discordUserId: string): Promise<void> {
-    await this.db
-      .updateTable("user_bindings")
-      .set({ discord_user_id: discordUserId, updated_at: new Date() })
-      .where("id", "=", userId)
-      .execute();
-  }
-
-  async bindSlack(userId: number, slackUserId: string): Promise<void> {
-    await this.db
-      .updateTable("user_bindings")
-      .set({ slack_user_id: slackUserId, updated_at: new Date() })
-      .where("id", "=", userId)
-      .execute();
   }
 }

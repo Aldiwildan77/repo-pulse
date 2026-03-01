@@ -9,4 +9,5 @@ export interface UserIdentity {
   refreshTokenEncrypted: string | null;
   tokenExpiresAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
 }

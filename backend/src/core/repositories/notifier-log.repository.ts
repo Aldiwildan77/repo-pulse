@@ -1,18 +1,24 @@
-import type { NotifierLog } from "../entities/notifier-log.js";
+import type { NotifierLog, NotificationStatus, NotificationPlatform } from "../entities/index.js";
 
 export interface NotifierLogRepository {
   create(data: {
-    repoConfigId: number;
+    repoConfigNotificationId: number;
     eventType: string;
-    status: string;
-    platform: string;
+    status: NotificationStatus;
+    platform: NotificationPlatform;
+    providerEntityType?: string;
+    providerEntityId: string;
+    providerEntityNumber?: number | null;
     summary: string;
     errorMessage?: string | null;
+    resolvedAt?: Date | null;
   }): Promise<NotifierLog>;
 
-  findByRepoConfig(
-    repoConfigId: number,
+  findByNotification(
+    notificationId: number,
     limit: number,
     offset: number,
   ): Promise<{ logs: NotifierLog[]; total: number }>;
+
+  updateStatus(id: number, status: NotificationStatus, resolvedAt?: Date | null): Promise<void>;
 }

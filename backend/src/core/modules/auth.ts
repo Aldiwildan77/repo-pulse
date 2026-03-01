@@ -1,5 +1,6 @@
 import type { Config } from "../../infrastructure/config.js";
-import type { UserBindingRepository } from "../repositories/user-binding.repository.js";
+import type { UserRepository } from "../repositories/user.repository.js";
+import type { WorkspaceRepository } from "../repositories/workspace.repository.js";
 import type { JwtService } from "../../infrastructure/auth/jwt.js";
 import type { GitHubOAuthService } from "../../infrastructure/auth/github-oauth.js";
 import type { GoogleOAuthService } from "../../infrastructure/auth/google-oauth.js";
@@ -9,14 +10,14 @@ import type { SlackOAuthService } from "../../infrastructure/auth/slack-oauth.js
 import type { CryptoService } from "../../infrastructure/auth/crypto.js";
 import type { KyselyAuthRepository } from "../../repositories/auth/auth.repo.js";
 import type { TotpModule } from "./totp.js";
-import type { UserBinding, UserIdentity } from "../entities/index.js";
+import type { User, UserIdentity } from "../entities/index.js";
 
 export interface AuthCallbackResult {
   accessToken?: string;
   refreshToken?: string;
   totpPendingToken?: string;
   totpRequired: boolean;
-  user: UserBinding;
+  user: User;
 }
 
 interface IdentityCallbackParams {
@@ -32,7 +33,8 @@ interface IdentityCallbackParams {
 export class AuthModule {
   constructor(
     private readonly config: Config,
-    private readonly userBindingRepo: UserBindingRepository,
+    private readonly userRepo: UserRepository,
+    private readonly workspaceRepo: WorkspaceRepository,
     private readonly authRepo: KyselyAuthRepository,
     private readonly githubOAuth: GitHubOAuthService,
     private readonly googleOAuth: GoogleOAuthService | null,
@@ -182,20 +184,48 @@ export class AuthModule {
   async handleDiscordCallback(code: string, userId: number): Promise<void> {
     const oauthToken = await this.discordOAuth.exchangeCode(code);
     const discordUser = await this.discordOAuth.getUser(oauthToken.accessToken);
-    await this.userBindingRepo.updateDiscord(userId, discordUser.id);
+
+    // Create or update discord identity
+    const existing = await this.authRepo.findIdentityByUserId(userId, "discord");
+    if (existing) {
+      await this.authRepo.updateIdentityTokens(existing.id, "", null, null);
+    } else {
+      await this.authRepo.addIdentity({
+        userId,
+        provider: "discord",
+        providerUserId: discordUser.id,
+        providerUsername: discordUser.username ?? null,
+      });
+    }
   }
 
   async handleSlackCallback(code: string, userId: number): Promise<void> {
     const result = await this.slackOAuth.exchangeCode(code);
-    await this.userBindingRepo.updateSlack(userId, result.userId);
+
+    // Create or update slack identity
+    const existing = await this.authRepo.findIdentityByUserId(userId, "slack");
+    if (existing) {
+      await this.authRepo.updateIdentityTokens(existing.id, "", null, null);
+    } else {
+      await this.authRepo.addIdentity({
+        userId,
+        provider: "slack",
+        providerUserId: result.userId,
+      });
+    }
   }
 
-  async getProfile(userId: number): Promise<UserBinding | null> {
+  async getProfile(userId: number): Promise<User | null> {
     return this.authRepo.findUserById(userId);
   }
 
   async getIdentities(userId: number): Promise<UserIdentity[]> {
     return this.authRepo.findIdentitiesByUserId(userId);
+  }
+
+  async getDefaultWorkspaceId(userId: number): Promise<number | null> {
+    const workspaces = await this.workspaceRepo.findByUserId(userId);
+    return workspaces.length > 0 ? workspaces[0].id : null;
   }
 
   verifyAccessToken(token: string): { sub: string } {
@@ -262,7 +292,7 @@ export class AuthModule {
     }
 
     // Login mode
-    let user: UserBinding;
+    let user: User;
     if (existingIdentity) {
       if (hasTokens) {
         await this.authRepo.updateIdentityTokens(
@@ -274,7 +304,10 @@ export class AuthModule {
       }
       user = (await this.authRepo.findUserById(existingIdentity.userId))!;
     } else {
+      // New user — create user + auto-create workspace
       user = await this.authRepo.createUser();
+      const workspace = await this.workspaceRepo.create(`${params.providerUsername ?? "User"}'s Workspace`);
+      await this.workspaceRepo.addMember(workspace.id, user.id, "owner", "accepted");
       await this.authRepo.addIdentity({
         userId: user.id,
         provider: params.provider,
@@ -290,7 +323,7 @@ export class AuthModule {
     return this.buildAuthResult(user);
   }
 
-  private async buildAuthResult(user: UserBinding): Promise<AuthCallbackResult> {
+  private async buildAuthResult(user: User): Promise<AuthCallbackResult> {
     if (this.totpModule && (await this.totpModule.isTotpEnabled(user.id))) {
       return {
         totpPendingToken: this.totpModule.signTotpPendingToken(user.id),

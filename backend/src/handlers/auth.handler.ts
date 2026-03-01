@@ -192,13 +192,15 @@ export class AuthHandler {
     const githubIdentity = identities.find((i) => i.provider === "github");
     const googleIdentity = identities.find((i) => i.provider === "google");
     const gitlabIdentity = identities.find((i) => i.provider === "gitlab");
+    const discordIdentity = identities.find((i) => i.provider === "discord");
+    const slackIdentity = identities.find((i) => i.provider === "slack");
 
     reply.send({
       id: profile.id,
       providerUserId: githubIdentity?.providerUserId ?? null,
       providerUsername: githubIdentity?.providerUsername ?? null,
-      discordBound: !!profile.discordUserId,
-      slackBound: !!profile.slackUserId,
+      discordBound: !!discordIdentity,
+      slackBound: !!slackIdentity,
       githubBound: !!githubIdentity,
       googleBound: !!googleIdentity,
       googleEmail: googleIdentity?.providerEmail ?? null,

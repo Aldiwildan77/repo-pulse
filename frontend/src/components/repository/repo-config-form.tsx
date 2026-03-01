@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -21,19 +20,12 @@ import {
   useDiscordGuilds,
   useSlackChannels,
 } from '@/hooks/use-platforms';
-import type { RepoConfigInput } from '@/hooks/use-repositories';
 import type { Platform, SourceProvider } from '@/utils/constants';
 import { API_URL } from '@/utils/constants';
 import { Switch } from '@/components/ui/switch';
 import { ExternalLinkIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, XIcon } from 'lucide-react';
-import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { defaultChannelMapping, defaultValues, type ChannelMapping, type MultiPlatformState } from './repo-config-defaults';
-
-interface RepoConfigFormProps {
-  initialValues?: RepoConfigInput;
-  onSubmit: (values: RepoConfigInput) => Promise<void>;
-  isSubmitting: boolean;
-}
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import { defaultChannelMapping, type ChannelMapping, type MultiPlatformState, type SourceValues } from './repo-config-defaults';
 
 const providerNames: Record<SourceProvider, string> = {
   github: 'GitHub',
@@ -44,8 +36,8 @@ const providerNames: Record<SourceProvider, string> = {
 // --- Extracted step content components for reuse in wizard ---
 
 interface SourceStepContentProps {
-  values: RepoConfigInput;
-  setValues: React.Dispatch<React.SetStateAction<RepoConfigInput>>;
+  values: SourceValues;
+  setValues: React.Dispatch<React.SetStateAction<SourceValues>>;
   initialProviderRepo?: string;
 }
 
@@ -59,12 +51,12 @@ export function SourceStepContent({
     isLoading: reposLoading,
     error: reposError,
     refetch: refetchRepos,
-  } = useConnectedRepos(values.provider);
+  } = useConnectedRepos(values.providerType);
 
   const filteredRepos = connectedRepos;
 
   const handleProviderChange = (provider: SourceProvider) => {
-    setValues((prev) => ({ ...prev, provider, providerRepo: '' }));
+    setValues((prev) => ({ ...prev, providerType: provider, providerRepo: '' }));
   };
 
   return (
@@ -83,7 +75,7 @@ export function SourceStepContent({
                   className='h-5 w-5'
                   onClick={() =>
                     window.open(
-                      `${API_URL}/api/providers/${values.provider}/install`,
+                      `${API_URL}/api/providers/${values.providerType}/install`,
                       '_blank',
                     )
                   }
@@ -92,13 +84,13 @@ export function SourceStepContent({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                Configure {providerNames[values.provider]} App settings
+                Configure {providerNames[values.providerType]} App settings
               </TooltipContent>
             </Tooltip>
           }
         >
           <Select
-            value={values.provider}
+            value={values.providerType}
             onValueChange={(v: SourceProvider) => handleProviderChange(v)}
           >
             <SelectTrigger id='provider'>
@@ -166,7 +158,7 @@ export function SourceStepContent({
               <p className='text-sm text-muted-foreground'>
                 No connected repositories found.
               </p>
-              {values.provider === 'github' && (
+              {values.providerType === 'github' && (
                 <div className='flex gap-2'>
                   <Button
                     type='button'
@@ -174,7 +166,7 @@ export function SourceStepContent({
                     size='sm'
                     onClick={() =>
                       window.open(
-                        `${API_URL}/api/providers/${values.provider}/install`,
+                        `${API_URL}/api/providers/${values.providerType}/install`,
                         '_blank',
                       )
                     }
@@ -278,145 +270,6 @@ export function TagsInput({
         </div>
       </div>
     </FormField>
-  );
-}
-
-interface NotificationStepContentProps {
-  values: RepoConfigInput;
-  setValues: React.Dispatch<React.SetStateAction<RepoConfigInput>>;
-  initialValues?: RepoConfigInput;
-}
-
-export function NotificationStepContent({
-  values,
-  setValues,
-  initialValues,
-}: NotificationStepContentProps) {
-  const [selectedGuildId, setSelectedGuildId] = useState<string | null>(null);
-  const { guilds, isLoading: guildsLoading } = useDiscordGuilds();
-
-  const activeGuildId = useMemo(() => {
-    if (selectedGuildId) return selectedGuildId;
-    if (
-      initialValues?.platform === 'discord' &&
-      initialValues.channelId &&
-      guilds.length > 0
-    ) {
-      return guilds[0].id;
-    }
-    return null;
-  }, [selectedGuildId, initialValues, guilds]);
-
-  const { channels: discordChannels, isLoading: discordChannelsLoading } =
-    useDiscordChannels(values.platform === 'discord' ? activeGuildId : null);
-  const { channels: slackChannels, isLoading: slackChannelsLoading } =
-    useSlackChannels();
-
-  const handlePlatformChange = (platform: Platform) => {
-    setValues((prev) => ({ ...prev, platform, channelId: '' }));
-    setSelectedGuildId(null);
-  };
-
-  const handleGuildChange = (guildId: string) => {
-    setSelectedGuildId(guildId);
-    setValues((prev) => ({ ...prev, channelId: '' }));
-  };
-
-  const channels =
-    values.platform === 'discord' ? discordChannels : slackChannels;
-  const channelsLoading =
-    values.platform === 'discord'
-      ? discordChannelsLoading
-      : slackChannelsLoading;
-
-  return (
-    <div className='space-y-4'>
-      <div className='grid gap-4 sm:grid-cols-2'>
-        <FormField label='Platform' htmlFor='platform'>
-          <Select
-            value={values.platform}
-            onValueChange={(v: Platform) => handlePlatformChange(v)}
-          >
-            <SelectTrigger id='platform'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='discord'>Discord</SelectItem>
-              <SelectItem value='slack'>Slack</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        {values.platform === 'discord' && (
-          <FormField
-            label='Server'
-            htmlFor='guild'
-            hint='Select the Discord server where the bot is installed'
-          >
-            <Select
-              value={activeGuildId ?? ''}
-              onValueChange={handleGuildChange}
-              disabled={guildsLoading}
-            >
-              <SelectTrigger id='guild'>
-                <SelectValue
-                  placeholder={
-                    guildsLoading ? 'Loading servers...' : 'Select a server'
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {guilds.map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-        )}
-      </div>
-
-      <FormField
-        label='Channel'
-        htmlFor='channelId'
-        hint={`The ${values.platform === 'discord' ? 'Discord' : 'Slack'} channel where notifications will be sent`}
-      >
-        <Select
-          value={values.channelId}
-          onValueChange={(v) =>
-            setValues((prev) => ({ ...prev, channelId: v }))
-          }
-          disabled={
-            channelsLoading || (values.platform === 'discord' && !activeGuildId)
-          }
-        >
-          <SelectTrigger id='channelId'>
-            <SelectValue
-              placeholder={
-                channelsLoading
-                  ? 'Loading channels...'
-                  : values.platform === 'discord' && !activeGuildId
-                    ? 'Select a server first'
-                    : 'Select a channel'
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {channels.map((ch) => (
-              <SelectItem key={ch.id} value={ch.id}>
-                # {ch.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FormField>
-
-      <TagsInput
-        tags={values.tags ?? []}
-        onChange={(tags) => setValues((prev) => ({ ...prev, tags }))}
-      />
-    </div>
   );
 }
 
@@ -640,58 +493,5 @@ export function MultiPlatformNotificationStep({
         </p>
       )}
     </div>
-  );
-}
-
-// --- Original form component (used for editing) ---
-
-export function RepoConfigForm({
-  initialValues,
-  onSubmit,
-  isSubmitting,
-}: RepoConfigFormProps) {
-  const [values, setValues] = useState<RepoConfigInput>(
-    initialValues ?? defaultValues,
-  );
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    await onSubmit(values);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className='space-y-8'>
-      {/* Source section */}
-      <div className='space-y-4'>
-        <h3 className='text-sm font-medium text-muted-foreground'>Source</h3>
-        <SourceStepContent
-          values={values}
-          setValues={setValues}
-          initialProviderRepo={initialValues?.providerRepo}
-        />
-      </div>
-
-      <Separator />
-
-      {/* Notification section */}
-      <div className='space-y-4'>
-        <h3 className='text-sm font-medium text-muted-foreground'>
-          Notification Target
-        </h3>
-        <NotificationStepContent
-          values={values}
-          setValues={setValues}
-          initialValues={initialValues}
-        />
-      </div>
-
-      <Button type='submit' disabled={isSubmitting} className='w-full'>
-        {isSubmitting
-          ? 'Saving...'
-          : initialValues
-            ? 'Update Repository'
-            : 'Add Repository'}
-      </Button>
-    </form>
   );
 }

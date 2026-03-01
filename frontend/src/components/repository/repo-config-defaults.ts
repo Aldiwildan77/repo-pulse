@@ -1,18 +1,20 @@
-import type { RepoConfigInput } from "@/hooks/use-repositories";
+import type { SourceProvider } from "@/utils/constants";
 
-export const defaultValues: RepoConfigInput = {
-  provider: "github",
+export interface SourceValues {
+  providerType: SourceProvider;
+  providerRepo: string;
+}
+
+export const defaultSourceValues: SourceValues = {
+  providerType: "github",
   providerRepo: "",
-  platform: "discord",
-  channelId: "",
-  tags: [],
 };
 
 export interface ChannelMapping {
   channelId: string;
   guildId: string | null; // Discord-only
   tags: string[];
-  existingConfigId?: number; // used in edit mode for diff-based save
+  existingNotificationId?: number; // used in edit mode for diff-based save
 }
 
 export interface PlatformConfig {

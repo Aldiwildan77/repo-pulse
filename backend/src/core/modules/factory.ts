@@ -1,7 +1,7 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepositoryFactory } from "../../repositories/factory.js";
 import type { InfrastructureFactory } from "../../infrastructure/factory.js";
-import type { Platform } from "../entities/index.js";
+import type { NotificationPlatform } from "../entities/index.js";
 import type { Pusher } from "./pusher/pusher.interface.js";
 import { DiscordPusher } from "./pusher/discord.pusher.js";
 import { SlackPusher } from "./pusher/slack.pusher.js";
@@ -20,16 +20,16 @@ export class ModuleFactory {
   readonly feedback: FeedbackModule;
 
   constructor(config: Config, repos: RepositoryFactory, infra: InfrastructureFactory) {
-    const pushers = new Map<Platform, Pusher>([
+    const pushers = new Map<NotificationPlatform, Pusher>([
       ["discord", new DiscordPusher(config.discordBotToken)],
       ["slack", new SlackPusher(config.slackBotToken)],
     ]);
 
     this.notifier = new NotifierModule(
       config,
-      repos.prMessage,
-      repos.repoConfig,
-      repos.userBinding,
+      repos.notificationDelivery,
+      repos.repoConfigNotification,
+      repos.user,
       repos.webhookEvent,
       repos.notifierLog,
       pushers,
@@ -41,7 +41,8 @@ export class ModuleFactory {
 
     this.auth = new AuthModule(
       config,
-      repos.userBinding,
+      repos.user,
+      repos.workspace,
       repos.auth,
       infra.githubOAuth,
       infra.googleOAuth,
@@ -55,7 +56,7 @@ export class ModuleFactory {
 
     const githubApi = new GitHubApiClient();
 
-    this.admin = new AdminModule(config, repos.repoConfig, repos.notifierLog, pushers, githubApi, infra.gitlabApi);
+    this.admin = new AdminModule(config, repos.repoConfig, repos.repoConfigNotification, repos.workspace, repos.notifierLog, pushers, githubApi, infra.gitlabApi);
     this.admin.setAuthModule(this.auth);
 
     this.feedback = new FeedbackModule(repos.feedback);

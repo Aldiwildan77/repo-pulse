@@ -1,10 +1,12 @@
-export type { PrMessage, Platform, PrStatus } from "./pr-message.js";
-export type { UserBinding } from "./user-binding.js";
+export type { User } from "./user.js";
+export type { NotificationDelivery, NotificationPlatform } from "./notification-delivery.js";
 export type { UserIdentity } from "./user-identity.js";
-export type { RepoConfig, RepoEventToggle } from "./repo-config.js";
+export type { RepoConfig, RepoConfigNotification, RepoConfigNotificationTag, RepoEventToggle } from "./repo-config.js";
 export type { WebhookEvent } from "./webhook-event.js";
-
+export type { Workspace, WorkspaceMember, WorkspaceRole, WorkspaceMemberStatus } from "./workspace.js";
+export type { RepoAccessRequest, RepoAccessRequestStatus } from "./repo-access-request.js";
+export type { RepoConfigWebhook } from "./repo-config-webhook.js";
 export type { UserTotp } from "./user-totp.js";
-export type { NotifierLog } from "./notifier-log.js";
+export type { NotifierLog, NotificationStatus } from "./notifier-log.js";
 export type { Feedback } from "./feedback.js";
 export type { SourceProvider } from "../webhook/webhook-provider.js";

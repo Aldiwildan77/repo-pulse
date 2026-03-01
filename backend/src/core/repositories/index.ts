@@ -1,5 +1,10 @@
-export type { PrMessageRepository } from "./pr-message.repository.js";
-export type { UserBindingRepository } from "./user-binding.repository.js";
+export type { UserRepository } from "./user.repository.js";
+export type { NotificationDeliveryRepository } from "./notification-delivery.repository.js";
 export type { RepoConfigRepository } from "./repo-config.repository.js";
+export type { RepoConfigNotificationRepository } from "./repo-config-notification.repository.js";
+export type { WorkspaceRepository } from "./workspace.repository.js";
 export type { WebhookEventRepository } from "./webhook-event.repository.js";
-
+export type { UserIdentityRepository } from "./user-identity.repository.js";
+export type { NotifierLogRepository } from "./notifier-log.repository.js";
+export type { UserTotpRepository } from "./user-totp.repository.js";
+export type { FeedbackRepository } from "./feedback.repository.js";

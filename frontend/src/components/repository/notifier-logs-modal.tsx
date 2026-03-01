@@ -50,15 +50,19 @@ const EVENT_LABELS: Record<string, string> = {
 };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  sent: "default",
+  delivered: "default",
   failed: "destructive",
   skipped: "secondary",
+  queued: "outline",
+  processing: "outline",
 };
 
 const STATUS_ICONS: Record<string, { icon: LucideIcon; tip: string }> = {
-  sent: { icon: CheckCircle2, tip: "Notification delivered successfully" },
+  delivered: { icon: CheckCircle2, tip: "Notification delivered successfully" },
   failed: { icon: XCircle, tip: "Notification failed to send" },
   skipped: { icon: SkipForward, tip: "Notification skipped (disabled or filtered)" },
+  queued: { icon: ScrollText, tip: "Notification queued for processing" },
+  processing: { icon: ScrollText, tip: "Notification is being processed" },
 };
 
 const EVENT_ICONS: Record<string, LucideIcon> = {
@@ -73,14 +77,14 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
 };
 
 interface NotifierLogsModalProps {
-  repoConfigId: number | null;
+  notificationId: number | null;
   repoName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function NotifierLogsModal({
-  repoConfigId,
+  notificationId,
   repoName,
   open,
   onOpenChange,
@@ -92,17 +96,17 @@ export function NotifierLogsModal({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !repoConfigId) return;
+    if (!open || !notificationId) return;
 
     setIsLoading(true);
-    getNotifierLogs(repoConfigId, PAGE_SIZE, offset)
+    getNotifierLogs(notificationId, PAGE_SIZE, offset)
       .then((result) => {
         setLogs(result.logs);
         setTotal(result.total);
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load logs"))
       .finally(() => setIsLoading(false));
-  }, [open, repoConfigId, offset, getNotifierLogs]);
+  }, [open, notificationId, offset, getNotifierLogs]);
 
   useEffect(() => {
     if (!open) {

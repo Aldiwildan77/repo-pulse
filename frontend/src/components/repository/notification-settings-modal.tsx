@@ -40,14 +40,14 @@ const EVENT_TYPES: { key: string; label: string; description: string; icon: Luci
 ];
 
 interface NotificationSettingsModalProps {
-  repoConfigId: number | null;
+  notificationId: number | null;
   repoName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function NotificationSettingsModal({
-  repoConfigId,
+  notificationId,
   repoName,
   open,
   onOpenChange,
@@ -57,14 +57,14 @@ export function NotificationSettingsModal({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !repoConfigId) return;
+    if (!open || !notificationId) return;
 
     setIsLoading(true);
-    getEventToggles(repoConfigId)
+    getEventToggles(notificationId)
       .then(setToggles)
       .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load notification settings"))
       .finally(() => setIsLoading(false));
-  }, [open, repoConfigId, getEventToggles]);
+  }, [open, notificationId, getEventToggles]);
 
   const getToggleValue = (eventType: string): boolean => {
     const toggle = toggles.find((t) => t.eventType === eventType);
@@ -72,7 +72,7 @@ export function NotificationSettingsModal({
   };
 
   const handleToggle = async (eventType: string, isEnabled: boolean) => {
-    if (!repoConfigId) return;
+    if (!notificationId) return;
 
     setToggles((prev) => {
       const existing = prev.find((t) => t.eventType === eventType);
@@ -81,11 +81,11 @@ export function NotificationSettingsModal({
           t.eventType === eventType ? { ...t, isEnabled } : t,
         );
       }
-      return [...prev, { id: 0, repoConfigId, eventType, isEnabled }];
+      return [...prev, { id: 0, repoConfigNotificationId: notificationId, eventType, isEnabled }];
     });
 
     try {
-      await upsertEventToggle(repoConfigId, eventType, isEnabled);
+      await upsertEventToggle(notificationId, eventType, isEnabled);
     } catch (err) {
       setToggles((prev) =>
         prev.map((t) =>

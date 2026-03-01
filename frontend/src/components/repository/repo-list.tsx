@@ -15,6 +15,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -28,7 +31,7 @@ import {
 import { RepoStatusBadge } from "./repo-status-badge";
 import { NotificationSettingsModal } from "./notification-settings-modal";
 import { NotifierLogsModal } from "./notifier-logs-modal";
-import type { RepoConfig } from "@/hooks/use-repositories";
+import type { RepoConfig, RepoConfigNotification } from "@/hooks/use-repositories";
 
 interface RepoListProps {
   repositories: RepoConfig[];
@@ -51,16 +54,24 @@ export function RepoList({
 }: RepoListProps) {
   const navigate = useNavigate();
   const [notifModal, setNotifModal] = useState<{
-    id: number;
+    notificationId: number;
     name: string;
   } | null>(null);
   const [logsModal, setLogsModal] = useState<{
-    id: number;
+    notificationId: number;
     name: string;
   } | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
+
+  const openNotifModal = (notif: RepoConfigNotification, repoName: string) => {
+    setNotifModal({ notificationId: notif.id, name: `${repoName} (${notif.notificationPlatform} #${notif.channelId.slice(0, 8)})` });
+  };
+
+  const openLogsModal = (notif: RepoConfigNotification, repoName: string) => {
+    setLogsModal({ notificationId: notif.id, name: `${repoName} (${notif.notificationPlatform} #${notif.channelId.slice(0, 8)})` });
+  };
 
   if (repositories.length === 0 && offset === 0) {
     return (
@@ -86,9 +97,7 @@ export function RepoList({
             <TableRow>
               <TableHead>Repository</TableHead>
               <TableHead>Provider</TableHead>
-              <TableHead>Platform</TableHead>
-              <TableHead>Channel ID</TableHead>
-              <TableHead>Tags</TableHead>
+              <TableHead>Notifications</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12" />
             </TableRow>
@@ -100,28 +109,20 @@ export function RepoList({
                   {repo.providerRepo}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{repo.provider}</Badge>
+                  <Badge variant="secondary">{repo.providerType}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{repo.platform}</Badge>
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {repo.channelId}
-                </TableCell>
-                <TableCell>
-                  {repo.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {repo.tags.map((t) => (
-                        <Badge key={t} variant="default" className="text-xs">
-                          {t}
+                  <div className="flex flex-wrap gap-1">
+                    {repo.notifications.length > 0 ? (
+                      repo.notifications.map((n) => (
+                        <Badge key={n.id} variant="outline" className="text-xs">
+                          {n.notificationPlatform}
                         </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      default
-                    </Badge>
-                  )}
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <RepoStatusBadge
@@ -141,28 +142,57 @@ export function RepoList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setNotifModal({
-                            id: repo.id,
-                            name: repo.providerRepo,
-                          })
-                        }
-                      >
-                        <Bell className="mr-2 h-4 w-4" />
-                        Notification Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setLogsModal({
-                            id: repo.id,
-                            name: repo.providerRepo,
-                          })
-                        }
-                      >
-                        <ScrollText className="mr-2 h-4 w-4" />
-                        View Logs
-                      </DropdownMenuItem>
+                      {repo.notifications.length === 1 ? (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => openNotifModal(repo.notifications[0], repo.providerRepo)}
+                          >
+                            <Bell className="mr-2 h-4 w-4" />
+                            Notification Settings
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openLogsModal(repo.notifications[0], repo.providerRepo)}
+                          >
+                            <ScrollText className="mr-2 h-4 w-4" />
+                            View Logs
+                          </DropdownMenuItem>
+                        </>
+                      ) : repo.notifications.length > 1 ? (
+                        <>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <Bell className="mr-2 h-4 w-4" />
+                              Notification Settings
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {repo.notifications.map((n) => (
+                                <DropdownMenuItem
+                                  key={n.id}
+                                  onClick={() => openNotifModal(n, repo.providerRepo)}
+                                >
+                                  {n.notificationPlatform} #{n.channelId.slice(0, 8)}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <ScrollText className="mr-2 h-4 w-4" />
+                              View Logs
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {repo.notifications.map((n) => (
+                                <DropdownMenuItem
+                                  key={n.id}
+                                  onClick={() => openLogsModal(n, repo.providerRepo)}
+                                >
+                                  {n.notificationPlatform} #{n.channelId.slice(0, 8)}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        </>
+                      ) : null}
                       <DropdownMenuItem
                         onClick={() =>
                           navigate(`/repositories/${repo.id}/edit`)
@@ -198,25 +228,13 @@ export function RepoList({
               <p className="truncate font-medium">{repo.providerRepo}</p>
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="secondary" className="text-xs">
-                  {repo.provider}
+                  {repo.providerType}
                 </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {repo.platform}
-                </Badge>
-                {repo.tags.length > 0 ? (
-                  repo.tags.map((t) => (
-                    <Badge key={t} variant="default" className="text-xs">
-                      {t}
-                    </Badge>
-                  ))
-                ) : (
-                  <Badge variant="secondary" className="text-xs">
-                    default
+                {repo.notifications.map((n) => (
+                  <Badge key={n.id} variant="outline" className="text-xs">
+                    {n.notificationPlatform}
                   </Badge>
-                )}
-                <span className="truncate font-mono text-xs text-muted-foreground">
-                  #{repo.channelId}
-                </span>
+                ))}
               </div>
               <RepoStatusBadge
                 isActive={repo.isActive}
@@ -230,28 +248,57 @@ export function RepoList({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() =>
-                    setNotifModal({
-                      id: repo.id,
-                      name: repo.providerRepo,
-                    })
-                  }
-                >
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notification Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    setLogsModal({
-                      id: repo.id,
-                      name: repo.providerRepo,
-                    })
-                  }
-                >
-                  <ScrollText className="mr-2 h-4 w-4" />
-                  View Logs
-                </DropdownMenuItem>
+                {repo.notifications.length === 1 ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => openNotifModal(repo.notifications[0], repo.providerRepo)}
+                    >
+                      <Bell className="mr-2 h-4 w-4" />
+                      Notification Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => openLogsModal(repo.notifications[0], repo.providerRepo)}
+                    >
+                      <ScrollText className="mr-2 h-4 w-4" />
+                      View Logs
+                    </DropdownMenuItem>
+                  </>
+                ) : repo.notifications.length > 1 ? (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Bell className="mr-2 h-4 w-4" />
+                        Notification Settings
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {repo.notifications.map((n) => (
+                          <DropdownMenuItem
+                            key={n.id}
+                            onClick={() => openNotifModal(n, repo.providerRepo)}
+                          >
+                            {n.notificationPlatform} #{n.channelId.slice(0, 8)}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <ScrollText className="mr-2 h-4 w-4" />
+                        View Logs
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {repo.notifications.map((n) => (
+                          <DropdownMenuItem
+                            key={n.id}
+                            onClick={() => openLogsModal(n, repo.providerRepo)}
+                          >
+                            {n.notificationPlatform} #{n.channelId.slice(0, 8)}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </>
+                ) : null}
                 <DropdownMenuItem
                   onClick={() => navigate(`/repositories/${repo.id}/edit`)}
                 >
@@ -306,7 +353,7 @@ export function RepoList({
       )}
 
       <NotificationSettingsModal
-        repoConfigId={notifModal?.id ?? null}
+        notificationId={notifModal?.notificationId ?? null}
         repoName={notifModal?.name ?? ""}
         open={!!notifModal}
         onOpenChange={(open) => {
@@ -315,7 +362,7 @@ export function RepoList({
       />
 
       <NotifierLogsModal
-        repoConfigId={logsModal?.id ?? null}
+        notificationId={logsModal?.notificationId ?? null}
         repoName={logsModal?.name ?? ""}
         open={!!logsModal}
         onOpenChange={(open) => {

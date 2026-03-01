@@ -24,357 +24,269 @@ The system must:
 4. Handle mention mapping (GitHub → Discord / Slack)
 5. Allow account binding via web dashboard
 
----
+# System Rules & Architecture Specification
 
-## 2. Functional Requirements
-
-### 2.1 PR Created Notification
-
-**Trigger:**
-
-- GitHub `pull_request` event
-- `action = opened`
-
-**Behavior:**
-
-- Send notification to selected channel (configured via website)
-- Store platform message ID in database
-- Message must contain:
-  - Repository name
-  - PR title
-  - PR author
-  - PR link
-
-**Output Example:**
-
-```
-🚀 New Pull Request
-
-Repo: org/repo
-Title: Add feature
-Author: @username
-Link: https://github.com/...
-```
+This document defines the business rules and data rules enforced by the database schema.
 
 ---
 
-### 2.2 PR Comment with Mention
+# 1. User & Authentication Rules
 
-**Trigger:**
+## Identity Rules
 
-- GitHub `issue_comment` event
-- Comment contains `@username`
+- One `user` can have multiple `user_identities`.
+- `(provider, provider_user_id)` must be globally unique.
+- One user can have only one TOTP configuration.
+- If a user is deleted:
+  - All identities are deleted (CASCADE).
+  - TOTP is deleted.
 
-**Behavior:**
+## Authentication Providers
 
-- Parse mentioned GitHub usernames
-- Check if user has bound Discord and/or Slack account
-- Send notification directly to bound account
-- If user is not bound → no notification
-
-**Requirement:**
-
-- Binding must be done through the website
-- One GitHub account can bind:
-  - Discord
-  - Slack
-  - Or both
+- OAuth providers are defined by `auth_provider_type`.
+- Login is valid only if a matching identity exists.
 
 ---
 
-### 2.3 PR Merged Reaction
+# 2. Workspace Rules
 
-**Trigger:**
+## Membership
 
-- `pull_request`
-- `action = closed`
-- `merged = true`
+- One workspace can have multiple members.
+- One user can belong to multiple workspaces.
+- `(workspace_id, user_id)` must be unique for active states:
+  - `pending`
+  - `accepted`
+- A user with status `removed` can be invited again.
 
-**Behavior:**
+## Roles
 
-- Locate original PR notification message
-- Add ✅ reaction (checklist icon)
+Available roles:
 
----
+- `owner`
+- `admin`
+- `member`
 
-### 2.4 PR Closed (Not Merged) Reaction
+Expected behavior (application layer enforcement):
 
-**Trigger:**
-
-- `pull_request`
-- `action = closed`
-- `merged = false`
-
-**Behavior:**
-
-- Locate original PR notification message
-- Add ❌ reaction (reject icon)
+- Owner can manage everything.
+- Admin can invite members.
+- Member has limited permissions.
+- A workspace must always have at least one owner (enforced in application logic).
 
 ---
 
-## 3. Non-Functional Requirements
+# 3. Repository Claim Rules (Anti-Takeover Model)
 
-### 3.1 Performance
+## Global Uniqueness
 
-- Webhook response must be < 200ms
-- Event processing should be asynchronous
+`(provider_type, provider_repo)` is UNIQUE.
 
-### 3.2 Idempotency
+This means:
 
-- Duplicate GitHub webhook deliveries must not duplicate notifications
+- A repository can only exist once in the entire system.
+- First claim wins.
+- No duplicate repository configurations across workspaces.
 
-### 3.3 Security
+## Claim Metadata
 
-- GitHub webhook signature validation (HMAC SHA256)
-- OAuth token encryption
-- JWT authentication for frontend sessions
+Each repository stores:
 
-### 3.4 Scalability
+- `claimed_by_user_id`
+- `claimed_at`
 
-- Support multiple repositories
-- Support multiple channels per repository (future)
-- Multi-tenant ready
+If the claiming user is deleted:
 
----
+- The claim remains (user reference becomes NULL).
 
-## 4. System Architecture
+## Ownership Transfer
 
-### 4.1 High-Level Flow
+Repository ownership transfer is done by:
 
-```
-GitHub Webhook
-      ↓
-Backend (Fastify)
-      ↓
-Event Processor
-      ↓
-Discord / Slack Adapter
-      ↓
-Database (Message Mapping + User Binding)
-      ↓
-Frontend Dashboard
-```
+UPDATE repo_configs SET workspace_id = <new_workspace_id>;
+
+No duplicate record is created.
 
 ---
 
-## 5. Technology Stack
+# 4. Repository Access Requests
 
-### Backend
+If a repository is already claimed:
 
-- NodeJS (TypeScript)
-- Fastify
-- Kysely (DB client)
-- Discord Bot Account
-- GitHub Webhook integration
-- Slack API integration
+- Another user cannot claim it directly.
+- The user must create a `repo_access_request`.
 
----
+Rules:
 
-### Frontend
-
-- React
-- Discord OAuth
-- Slack OAuth
-- GitHub OAuth (for login)
-
-Users can:
-
-- Bind Discord
-- Bind Slack
-- Bind both platforms
+- Only one pending request per user per repository.
+- Status values:
+  - `pending`
+  - `approved`
+  - `rejected`
+- If approved:
+  - The user is added to the workspace.
 
 ---
 
-### Deployment
+# 5. Notification Configuration Rules
 
-- Vercel (Backend)
-- Vercel (Frontend)
+## Channels
 
----
+- One repository can have multiple notification channels.
+- `(repo_config_id, notification_platform, channel_id)` must be unique.
+- Channels can be enabled/disabled using `is_active`.
 
-# 6. Backend Structure
+## Tags
 
-```
-backend/src/
-├── cmd/
-│   ├── api.ts
-│   └── worker.ts
-├── core/
-│   ├── entities/
-│   ├── repositories/
-│   └── modules/
-│       ├── notifier.ts
-│       ├── pusher/
-│       ├── admin.ts
-│       ├── auth.ts
-├── handlers/
-├── repositories/
-│   └── auth/
-│       ├── dto.ts
-│       ├── auth.repo.ts
-├── infrastructure/
-│   ├── database/
-│   ├── redis/
-│   ├── auth/
-│   ├── rate-limiter/
-│   └── logger/
-├── app.ts
-└── main.ts
-```
+- One channel can have multiple tags.
+- Tags must be unique per channel.
+- If a channel has no tag → it receives all events (default behavior).
 
 ---
 
-## 6.1 Architecture Pattern
+## PR Tag-Based Notification Rule
 
-This backend follows a **Clean Architecture** approach:
+When a Pull Request (PR) event is received:
 
-- `core/` → pure business logic (no external dependency)
-- `repositories/` → DB implementations (Kysely)
-- `infrastructure/` → external adapters (Redis, JWT, Logger)
-- `handlers/` → HTTP layer (request/response parsing)
-- `cmd/` → Composition root
+1. Extract all labels/tags from the PR.
+2. Find all active `repo_config_notifications` for the repository.
+3. Join with `repo_config_notification_tags`.
 
----
+### Matching Logic
 
-## 7. Frontend Structure
+A channel must be notified if:
 
-```
-frontend/src/
-├── main.tsx
-├── App.tsx
-├── lib/
-├── pages/
-│   └── profile/
-├── components/
-│   ├── auth/
-│   └── *.tsx
-├── hooks/
-├── utils/
-└── index.css
-```
+- The PR contains at least one tag that matches a tag in `repo_config_notification_tags`
+- OR the channel has no tags configured (default channel)
 
----
+### Duplicate Prevention Rule
 
-## 8. Database Requirements
+Because a channel may match multiple PR tags:
 
-### 8.1 Pull Request Message Mapping
+- The final list of channels to notify **must be deduplicated by:**
+  - `notification_platform`
+  - `channel_id`
 
-Stores message ID for reaction updates.
+Only one notification per unique channel must be sent, even if multiple tags match.
 
-Required fields:
+### Example
 
-- github_pr_id
-- github_repo
-- platform (discord | slack)
-- platform_message_id
-- platform_channel_id
-- status
+If:
+
+- Channel A has tags: `bug`, `urgent`
+- PR contains: `bug`, `urgent`
+
+Result:
+
+- Channel A receives **only one notification**, not two.
 
 ---
 
-### 8.2 User Binding
+## Event Toggles
 
-Stores GitHub → Discord/Slack mapping.
-
-Required fields:
-
-- github_user_id
-- github_username
-- discord_user_id (nullable)
-- slack_user_id (nullable)
+- Each channel can enable/disable specific event types.
+- `(repo_config_notification_id, event_type)` must be unique.
+- `is_enabled = true` means the event will be delivered.
+- If disabled → event is skipped for that channel.
 
 ---
 
-### 8.3 Repository Configuration
+# 6. Webhook Rules
 
-Stores channel configuration per repo.
+## Idempotency
 
-Required fields:
+`webhook_event_logs.event_id` is UNIQUE.
 
-- github_repo
-- platform
-- channel_id
-- is_active
+This ensures:
 
----
-
-## 9. OAuth Flow
-
-### GitHub
-
-- Used for login
-- Identify GitHub user ID
-
-### Discord
-
-- Bind Discord account to GitHub account
-
-### Slack
-
-- Bind Slack account to GitHub account
+- The same webhook event is processed only once.
+- Duplicate webhook deliveries from provider are ignored.
 
 ---
 
-## 10. Event Processing Strategy
+# 7. Notification Processing Rules
 
-- Webhook endpoint receives event
-- Validate signature
-- Push event into internal processor
-- Store idempotency key (event ID)
-- Process according to event type
+## Status Lifecycle
 
----
+Notification statuses:
 
-## 11. User Flow
+- `queued`
+- `processing`
+- `delivered`
+- `failed`
+- `skipped`
 
-### 11.1 Admin
+Lifecycle:
 
-1. Login with GitHub
-2. Bind Discord and/or Slack
-3. Configure repository
-4. Select notification channel
+queued → processing → delivered | failed | skipped
 
----
+Rules:
 
-### 11.2 Developer
-
-1. Open PR
-2. Channel receives notification
-3. Mention someone in comment
-4. Mentioned user receives notification
-5. PR merged → checklist reaction appears
-6. PR closed → reject reaction appears
+- `resolved_at` is set when processing finishes.
+- `handling_time` is automatically calculated.
+- If `resolved_at` is NULL → `handling_time` is NULL.
 
 ---
 
-## 12. Future Enhancements
+# 8. Delivery Tracking Rules
 
-- Multi-channel per repo
-- Organization-level configuration
-- GitLab support
-- Threaded messages
-- Interactive message buttons
-- CI/CD status integration
-- Retry with exponential backoff
-- Metrics dashboard
-
----
-
-# ✅ Acceptance Criteria
-
-- PR created sends notification to configured channel
-- PR merged updates original message with ✅
-- PR closed updates original message with ❌
-- Mention triggers notification to bound users
-- Users can bind Discord and Slack via website
-- Duplicate webhooks do not create duplicate messages
+- One `notifier_log` can have multiple `notification_deliveries`.
+- `(notification_platform, provider_channel_id, provider_message_id)` must be unique.
+- Delivery metadata is stored for:
+  - Debugging
+  - Editing
+  - Deleting
+  - Retry logic
 
 ---
 
-If you'd like, next I can generate:
+# 9. Cascade Deletion Rules
 
-- 🔥 Database schema with full SQL + indexes
-- 🧠 Detailed system sequence diagrams
-- 🏗 Full backend domain modeling (entities + ports)
-- 🚀 Production-ready Fastify bootstrap code
-- 📦 Complete MVP roadmap (2-week sprint breakdown)
+Deletion hierarchy:
+
+- Deleting a workspace deletes its repositories.
+- Deleting a repository deletes its notification configs.
+- Deleting a notification config deletes its logs.
+- Deleting a log deletes its deliveries.
+
+This ensures clean relational integrity.
+
+---
+
+# 10. Security Rules (Application-Level)
+
+The database enforces structure. The application must enforce:
+
+1. Only repository admins/owners (validated via provider API) can claim a repository.
+2. A workspace must always have at least one owner.
+3. Users with `pending`, `rejected`, or `removed` status cannot access workspace data.
+4. Webhook events must be checked for idempotency before processing.
+5. Repository access must be verified against provider permissions before claim.
+
+---
+
+# System Architecture Summary
+
+User  
+ └── Workspace  
+ └── Repository (global unique)  
+ └── Notification Channel  
+ ├── Tags  
+ ├── Event Toggles  
+ └── Notifier Logs  
+ └── Deliveries
+
+---
+
+# Design Goals Achieved
+
+- Multi-user
+- Multi-workspace
+- Global repository uniqueness (anti-takeover)
+- Role-based access control
+- Idempotent webhook processing
+- Tag-based notification routing
+- Duplicate-safe channel delivery
+- Delivery tracking
+- Claim auditing
+- Retry-ready notification system

@@ -1,7 +1,9 @@
 import type { Config } from "../../infrastructure/config.js";
 import type { RepoConfigRepository } from "../repositories/repo-config.repository.js";
+import type { RepoConfigNotificationRepository } from "../repositories/repo-config-notification.repository.js";
+import type { WorkspaceRepository } from "../repositories/workspace.repository.js";
 import type { NotifierLogRepository } from "../repositories/notifier-log.repository.js";
-import type { Platform, RepoConfig, RepoEventToggle, NotifierLog } from "../entities/index.js";
+import type { NotificationPlatform, RepoConfig, RepoConfigNotification, RepoEventToggle, NotifierLog } from "../entities/index.js";
 import type { SourceProvider } from "../webhook/webhook-provider.js";
 import type { Pusher, Guild, Channel } from "./pusher/pusher.interface.js";
 import type { GitHubApiClient } from "../../infrastructure/auth/github-api.js";
@@ -13,14 +15,20 @@ export interface ProviderRepo {
   providerRepo: string;
 }
 
+export interface RepoConfigWithNotifications extends RepoConfig {
+  notifications: RepoConfigNotification[];
+}
+
 export class AdminModule {
   private authModule: AuthModule | null = null;
 
   constructor(
     private readonly config: Config,
     private readonly repoConfigRepo: RepoConfigRepository,
+    private readonly repoConfigNotificationRepo: RepoConfigNotificationRepository,
+    private readonly workspaceRepo: WorkspaceRepository,
     private readonly notifierLogRepo: NotifierLogRepository,
-    private readonly pushers: Map<Platform, Pusher>,
+    private readonly pushers: Map<NotificationPlatform, Pusher>,
     private readonly githubApi: GitHubApiClient | null,
     private readonly gitlabApi: GitLabApiClient | null,
   ) {}
@@ -29,107 +37,137 @@ export class AdminModule {
     this.authModule = auth;
   }
 
-  private async populateTags(configs: RepoConfig[]): Promise<void> {
-    if (configs.length === 0) return;
-    const tagsMap = await this.repoConfigRepo.getTagsForConfigs(configs.map((c) => c.id));
+  private async populateNotifications(configs: RepoConfig[]): Promise<RepoConfigWithNotifications[]> {
+    const result: RepoConfigWithNotifications[] = [];
     for (const cfg of configs) {
-      cfg.tags = tagsMap.get(cfg.id) ?? [];
+      const notifications = await this.repoConfigNotificationRepo.findByRepoConfig(cfg.id);
+      const tagMap = await this.repoConfigNotificationRepo.getTagsForNotifications(notifications.map((n) => n.id));
+      for (const notif of notifications) {
+        notif.tags = tagMap.get(notif.id) ?? [];
+      }
+      result.push({ ...cfg, notifications });
     }
-  }
-
-  async getRepoConfigById(id: number): Promise<RepoConfig | null> {
-    const config = await this.repoConfigRepo.findById(id);
-    if (config) await this.populateTags([config]);
-    return config;
-  }
-
-  async getAllRepoConfigsByUser(userId: number): Promise<RepoConfig[]> {
-    const configs = await this.repoConfigRepo.findAllByUser(userId);
-    await this.populateTags(configs);
-    return configs;
-  }
-
-  async getAllRepoConfigsByUserPaginated(userId: number, limit: number, offset: number): Promise<{ configs: RepoConfig[]; total: number }> {
-    const result = await this.repoConfigRepo.findAllByUserPaginated(userId, limit, offset);
-    await this.populateTags(result.configs);
     return result;
   }
 
+  async getRepoConfigById(id: number): Promise<RepoConfigWithNotifications | null> {
+    const config = await this.repoConfigRepo.findById(id);
+    if (!config) return null;
+    const [result] = await this.populateNotifications([config]);
+    return result;
+  }
+
+  async getRepoConfigsByWorkspace(workspaceId: number): Promise<RepoConfigWithNotifications[]> {
+    const configs = await this.repoConfigRepo.findByWorkspace(workspaceId);
+    return this.populateNotifications(configs);
+  }
+
+  async getRepoConfigsByWorkspacePaginated(workspaceId: number, limit: number, offset: number): Promise<{ configs: RepoConfigWithNotifications[]; total: number }> {
+    const result = await this.repoConfigRepo.findByWorkspacePaginated(workspaceId, limit, offset);
+    const configs = await this.populateNotifications(result.configs);
+    return { configs, total: result.total };
+  }
+
   async createRepoConfig(data: {
-    userId: number;
-    provider: SourceProvider;
+    workspaceId: number;
+    providerType: SourceProvider;
     providerRepo: string;
-    platform: Platform;
+    claimedByUserId: number;
+    notifications?: { platform: NotificationPlatform; channelId: string; tags?: string[] }[];
+  }): Promise<RepoConfigWithNotifications> {
+    const config = await this.repoConfigRepo.create({
+      workspaceId: data.workspaceId,
+      providerType: data.providerType,
+      providerRepo: data.providerRepo,
+      claimedByUserId: data.claimedByUserId,
+    });
+
+    const notifications: RepoConfigNotification[] = [];
+    if (data.notifications) {
+      for (const n of data.notifications) {
+        const notif = await this.repoConfigNotificationRepo.create({
+          repoConfigId: config.id,
+          notificationPlatform: n.platform,
+          channelId: n.channelId,
+        });
+        if (n.tags && n.tags.length > 0) {
+          await this.repoConfigNotificationRepo.setTagsForNotification(notif.id, n.tags);
+          notif.tags = n.tags;
+        }
+        notifications.push(notif);
+      }
+    }
+
+    return { ...config, notifications };
+  }
+
+  async createNotification(repoConfigId: number, data: {
+    platform: NotificationPlatform;
     channelId: string;
     tags?: string[];
-  }): Promise<RepoConfig> {
-    const config = await this.repoConfigRepo.create(data);
+  }): Promise<RepoConfigNotification> {
+    const notif = await this.repoConfigNotificationRepo.create({
+      repoConfigId,
+      notificationPlatform: data.platform,
+      channelId: data.channelId,
+    });
     if (data.tags && data.tags.length > 0) {
-      await this.repoConfigRepo.setTagsForConfig(config.id, data.tags);
-      config.tags = data.tags;
+      await this.repoConfigNotificationRepo.setTagsForNotification(notif.id, data.tags);
+      notif.tags = data.tags;
     }
-    return config;
+    return notif;
   }
 
-  async getRepoConfigs(providerRepo: string): Promise<RepoConfig[]> {
-    return this.repoConfigRepo.findByRepo(providerRepo);
-  }
-
-  async updateRepoConfig(id: number, userId: number, data: {
+  async updateNotification(notificationId: number, data: {
     channelId?: string;
     isActive?: boolean;
     tags?: string[];
   }): Promise<void> {
+    const { tags, ...updateData } = data;
+    if (Object.keys(updateData).length > 0) {
+      await this.repoConfigNotificationRepo.update(notificationId, updateData);
+    }
+    if (tags !== undefined) {
+      await this.repoConfigNotificationRepo.setTagsForNotification(notificationId, tags);
+    }
+  }
+
+  async deleteNotification(notificationId: number): Promise<void> {
+    await this.repoConfigNotificationRepo.delete(notificationId);
+  }
+
+  async updateRepoConfig(id: number, workspaceId: number, data: {
+    isActive?: boolean;
+  }): Promise<void> {
     const config = await this.repoConfigRepo.findById(id);
-    if (!config || config.userId !== userId) {
+    if (!config || config.workspaceId !== workspaceId) {
       throw new Error("Config not found");
     }
-    const { tags, ...updateData } = data;
-    await this.repoConfigRepo.update(id, updateData);
-    if (tags !== undefined) {
-      await this.repoConfigRepo.setTagsForConfig(id, tags);
-    }
+    await this.repoConfigRepo.update(id, data);
   }
 
-  async updateRepoConfigWebhook(id: number, webhookId: string | null, webhookCreatedBy: number | null): Promise<void> {
-    return this.repoConfigRepo.updateWebhookId(id, webhookId, webhookCreatedBy);
-  }
-
-  async deleteRepoConfig(id: number, userId: number): Promise<void> {
+  async deleteRepoConfig(id: number, workspaceId: number): Promise<void> {
     const config = await this.repoConfigRepo.findById(id);
-    if (!config || config.userId !== userId) {
+    if (!config || config.workspaceId !== workspaceId) {
       throw new Error("Config not found");
     }
     return this.repoConfigRepo.delete(id);
   }
 
-  async getEventToggles(repoConfigId: number, userId: number): Promise<RepoEventToggle[]> {
-    const config = await this.repoConfigRepo.findById(repoConfigId);
-    if (!config || config.userId !== userId) {
-      throw new Error("Config not found");
-    }
-    return this.repoConfigRepo.getEventToggles(repoConfigId);
+  async getEventToggles(notificationId: number): Promise<RepoEventToggle[]> {
+    return this.repoConfigNotificationRepo.getEventToggles(notificationId);
   }
 
-  async upsertEventToggle(repoConfigId: number, userId: number, eventType: string, isEnabled: boolean): Promise<void> {
-    const config = await this.repoConfigRepo.findById(repoConfigId);
-    if (!config || config.userId !== userId) {
-      throw new Error("Config not found");
-    }
-    return this.repoConfigRepo.upsertEventToggle(repoConfigId, eventType, isEnabled);
+  async upsertEventToggle(notificationId: number, eventType: string, isEnabled: boolean): Promise<void> {
+    return this.repoConfigNotificationRepo.upsertEventToggle(notificationId, eventType, isEnabled);
   }
 
   async getNotifierLogs(
-    repoConfigId: number,
-    userId: number,
+    notificationId: number,
     limit: number,
     offset: number,
   ): Promise<{ logs: NotifierLog[]; total: number }> {
-    const config = await this.repoConfigRepo.findById(repoConfigId);
-    if (!config || config.userId !== userId) {
-      throw new Error("Config not found");
-    }
-    return this.notifierLogRepo.findByRepoConfig(repoConfigId, limit, offset);
+    return this.notifierLogRepo.findByNotification(notificationId, limit, offset);
   }
 
   async getProviderRepos(userId: number, provider: SourceProvider): Promise<ProviderRepo[]> {

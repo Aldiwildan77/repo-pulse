@@ -4,11 +4,10 @@ import { apiClient } from "@/utils/api-client";
 import { useApi } from "./use-api";
 import type { Platform, SourceProvider } from "@/utils/constants";
 
-export interface RepoConfig {
+export interface RepoConfigNotification {
   id: number;
-  provider: SourceProvider;
-  providerRepo: string;
-  platform: Platform;
+  repoConfigId: number;
+  notificationPlatform: Platform;
   channelId: string;
   tags: string[];
   isActive: boolean;
@@ -16,30 +15,45 @@ export interface RepoConfig {
   updatedAt: string;
 }
 
+export interface RepoConfig {
+  id: number;
+  workspaceId: number;
+  providerType: SourceProvider;
+  providerRepo: string;
+  claimedByUserId: number | null;
+  isActive: boolean;
+  notifications: RepoConfigNotification[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RepoEventToggle {
   id: number;
-  repoConfigId: number;
+  repoConfigNotificationId: number;
   eventType: string;
   isEnabled: boolean;
 }
 
 export interface NotifierLog {
   id: number;
-  repoConfigId: number;
+  repoConfigNotificationId: number;
   eventType: string;
   status: string;
   platform: string;
+  providerEntityType: string;
+  providerEntityId: string;
+  providerEntityNumber: number | null;
   summary: string;
   errorMessage: string | null;
   createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
 }
 
 export interface RepoConfigInput {
-  provider: SourceProvider;
+  providerType: SourceProvider;
   providerRepo: string;
-  platform: Platform;
-  channelId: string;
-  tags?: string[];
+  notifications: { platform: Platform; channelId: string; tags?: string[] }[];
 }
 
 export function useRepositories(
@@ -94,11 +108,7 @@ export function useRepositoryMutations() {
   }, []);
 
   const update = useCallback(
-    async (id: number, input: {
-      channelId?: string;
-      isActive?: boolean;
-      tags?: string[];
-    }) => {
+    async (id: number, input: { isActive?: boolean }) => {
       try {
         await apiClient(`/api/repos/config/${id}`, {
           method: "PATCH",
@@ -136,13 +146,47 @@ export function useRepositoryMutations() {
     }
   }, []);
 
-  const getEventToggles = useCallback(async (id: number) => {
-    return apiClient<RepoEventToggle[]>(`/api/repos/config/${id}/toggles`);
+  const createNotification = useCallback(async (repoConfigId: number, data: { platform: Platform; channelId: string; tags?: string[] }) => {
+    try {
+      const notif = await apiClient<RepoConfigNotification>(`/api/repos/config/${repoConfigId}/notifications`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      return notif;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add notification");
+      throw err;
+    }
   }, []);
 
-  const upsertEventToggle = useCallback(async (id: number, eventType: string, isEnabled: boolean) => {
+  const updateNotification = useCallback(async (notificationId: number, data: { channelId?: string; isActive?: boolean; tags?: string[] }) => {
     try {
-      await apiClient(`/api/repos/config/${id}/toggles`, {
+      await apiClient(`/api/repos/config/notifications/${notificationId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update notification");
+      throw err;
+    }
+  }, []);
+
+  const deleteNotification = useCallback(async (notificationId: number) => {
+    try {
+      await apiClient(`/api/repos/config/notifications/${notificationId}`, { method: "DELETE" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete notification");
+      throw err;
+    }
+  }, []);
+
+  const getEventToggles = useCallback(async (notificationId: number) => {
+    return apiClient<RepoEventToggle[]>(`/api/repos/config/notifications/${notificationId}/toggles`);
+  }, []);
+
+  const upsertEventToggle = useCallback(async (notificationId: number, eventType: string, isEnabled: boolean) => {
+    try {
+      await apiClient(`/api/repos/config/notifications/${notificationId}/toggles`, {
         method: "PUT",
         body: JSON.stringify({ eventType, isEnabled }),
       });
@@ -153,14 +197,25 @@ export function useRepositoryMutations() {
   }, []);
 
   const getNotifierLogs = useCallback(
-    async (id: number, limit = 50, offset = 0) => {
+    async (notificationId: number, limit = 50, offset = 0) => {
       return apiClient<{
         logs: NotifierLog[];
         total: number;
-      }>(`/api/repos/config/${id}/logs?limit=${limit}&offset=${offset}`);
+      }>(`/api/repos/config/notifications/${notificationId}/logs?limit=${limit}&offset=${offset}`);
     },
     [],
   );
 
-  return { create, update, remove, toggleActive, getEventToggles, upsertEventToggle, getNotifierLogs };
+  return {
+    create,
+    update,
+    remove,
+    toggleActive,
+    createNotification,
+    updateNotification,
+    deleteNotification,
+    getEventToggles,
+    upsertEventToggle,
+    getNotifierLogs,
+  };
 }
