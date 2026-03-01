@@ -47,9 +47,23 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: amondnet/vercel-action@v25
+        id: vercel
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: --prod
           working-directory: ./frontend
+
+      - name: Notify Discord
+        if: success()
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          curl -s -H "Content-Type: application/json" -d "{
+            \"embeds\": [{
+              \"title\": \"Frontend Deployed\",
+              \"description\": \"**Commit:** ${COMMIT_MSG%%$'\\n'*}\n**By:** ${{ github.actor }}\n**URL:** ${{ steps.vercel.outputs.preview-url }}\",
+              \"color\": 3066993
+            }]
+          }" "${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}"
