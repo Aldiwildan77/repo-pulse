@@ -8,7 +8,7 @@ async function getHandler() {
   if (handler) return handler;
 
   const config = loadConfig();
-  const app = await buildApp(config);
+  const { app } = await buildApp(config);
   await app.ready();
 
   handler = async (req: VercelRequest, res: VercelResponse) => {

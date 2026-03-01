@@ -72,4 +72,9 @@ export class InfrastructureFactory {
     this.crypto = new CryptoService(config.jwtSecret);
     this.rateLimiter = new RateLimiter(this.redis);
   }
+
+  async shutdown(): Promise<void> {
+    await this.db.destroy();
+    this.redis.disconnect();
+  }
 }

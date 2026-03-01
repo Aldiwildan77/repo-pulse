@@ -45,5 +45,5 @@ export async function buildApp(config: Config) {
   // Register routes
   handlers.registerAll(app);
 
-  return app;
+  return { app, infra };
 }
